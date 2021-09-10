@@ -2568,10 +2568,10 @@ ton-crypto@1.2.0:
   dependencies:
     tweetnacl "^1.0.3"
 
-ton@2.3.0:
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-2.3.0.tgz#cc5293314149fd1abe37adb87e0470dd299c8b89"
-  integrity sha512-Wxd2K2Fp3/z35M5hS1z/zQJS7Wtz9gsbodja/9JoJZxHXR6Kyr/XE5c7b3KrPn6YTP/fVpGuu4G/HEa84y+Tgw==
+ton@2.3.1:
+  version "2.3.1"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-2.3.1.tgz#34655333bafe3032adbef633cd601f7dcf1f5539"
+  integrity sha512-U7MAKMEi1/pGWhMQYJ3Itfn7DGbdxDsIv0V8Pocpb+6hMDnqn9DQCCuqx/WIgcB2lIh1faMMWUlePzgnosGrkA==
   dependencies:
     bn.js "5.2.0"
     isomorphic-unfetch "3.1.0"
