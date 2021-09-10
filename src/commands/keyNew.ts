@@ -17,6 +17,5 @@ export async function keyNew() {
     console.log('Mnemonics: ' + wallet.mnemonic.join(' '));
     fs.writeFileSync(name + '.addr', wallet.wallet.address.toFriendly(), 'utf-8');
     fs.writeFileSync(name + '.backup', wallet.mnemonic.join(' '), 'utf-8');
-    fs.writeFileSync(name + '.public', wallet.key.publicKey);
-    fs.writeFileSync(name + '.secret', wallet.key.secretKey);
+    fs.writeFileSync(name + '.pk', wallet.key.secretKey);
 }
