@@ -18,7 +18,7 @@ export async function send() {
         default: false
     }]);
 
-    const client = new TonClient({ endpoint: 'https://ton.korshakov.com/jsonRpc' });
+    const client = new TonClient({ endpoint: 'https://ton.korshakov.com/jsonRPC' });
     let mnemonics = fs.readFileSync(name + '.backup', 'utf-8').split(' ').map((v) => v.trim());
     let key = await mnemonicToWalletKey(mnemonics);
     let wallet = await client.openWalletDefaultFromSecretKey({ workchain: masterchain ? -1 : 0, secretKey: key.secretKey });

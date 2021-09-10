@@ -11,7 +11,7 @@ export async function keyNew() {
         type: 'boolean',
         default: false
     }]);
-    const client = new TonClient({ endpoint: 'https://ton.korshakov.com/jsonRpc' });
+    const client = new TonClient({ endpoint: 'https://ton.korshakov.com/jsonRPC' });
     let wallet = await client.createNewWallet({ workchain: masterchain ? -1 : 0 });
     console.log('Address: ' + wallet.wallet.address.toFriendly());
     console.log('Mnemonics: ' + wallet.mnemonic.join(' '));
