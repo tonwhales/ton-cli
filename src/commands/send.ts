@@ -22,6 +22,7 @@ export async function send() {
     let mnemonics = fs.readFileSync(name + '.backup', 'utf-8').split(' ').map((v) => v.trim());
     let key = await mnemonicToWalletKey(mnemonics);
     let wallet = await client.openWalletDefaultFromSecretKey({ workchain: masterchain ? -1 : 0, secretKey: key.secretKey });
+    console.warn('Sending from ' + wallet.address.toFriendly());
     let seqno = await wallet.getSeqNo();
     await wallet.transfer({
         seqno,

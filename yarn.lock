@@ -2561,17 +2561,17 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-ton-crypto@1.2.0, ton-crypto@^1.2.0:
+ton-crypto@1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/ton-crypto/-/ton-crypto-1.2.0.tgz#36b561b4f8e72cf55079aac4c2ca46618fe19e99"
   integrity sha512-LmvhZJ2NAC6i3AuMjXmteMFbXdPQkLbem4yCaHt0q9zSLyUYAc6sz8papZnMxFkrqlD32r8cMere4EdTIqu5yw==
   dependencies:
     tweetnacl "^1.0.3"
 
-ton@2.3.1:
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-2.3.1.tgz#34655333bafe3032adbef633cd601f7dcf1f5539"
-  integrity sha512-U7MAKMEi1/pGWhMQYJ3Itfn7DGbdxDsIv0V8Pocpb+6hMDnqn9DQCCuqx/WIgcB2lIh1faMMWUlePzgnosGrkA==
+ton@2.3.2:
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-2.3.2.tgz#6fc1fcab95943dca02a593eabcd438e832028fa1"
+  integrity sha512-rbz90407QKZfQvDWqG3LMMpIfAvwSGvJwQKYpVXufxl5/9y4rQqtG+azJ4bszUJ/lHL2u9GAxY2fyJxn6S1aYg==
   dependencies:
     bn.js "5.2.0"
     isomorphic-unfetch "3.1.0"
