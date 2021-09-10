@@ -15,7 +15,7 @@ export async function keyNew() {
     let wallet = await client.createNewWallet({ workchain: masterchain ? -1 : 0 });
     console.log('Address: ' + wallet.wallet.address.toFriendly());
     console.log('Mnemonics: ' + wallet.mnemonic.join(' '));
-    fs.writeFileSync(name + '.addr', wallet.wallet.address.toFriendly(), 'utf-8');
+    fs.writeFileSync(name + '.addr', wallet.wallet.address.toFriendlyBuffer());
     fs.writeFileSync(name + '.backup', wallet.mnemonic.join(' '), 'utf-8');
     fs.writeFileSync(name + '.pk', wallet.key.secretKey.slice(0, 32));
 }
