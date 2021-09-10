@@ -1,6 +1,6 @@
 # TON CLI
 
-[![Version npm](https://img.shields.io/npm/v/ton.svg?logo=npm)](https://www.npmjs.com/package/ton)
+[![Version npm](https://img.shields.io/npm/v/ton-cli.svg?logo=npm)](https://www.npmjs.com/package/ton-cli)
 
 Cross-platform cli for TON.
 
