@@ -2561,7 +2561,7 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-ton-crypto@1.2.0:
+ton-crypto@1.2.0, ton-crypto@^1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/ton-crypto/-/ton-crypto-1.2.0.tgz#36b561b4f8e72cf55079aac4c2ca46618fe19e99"
   integrity sha512-LmvhZJ2NAC6i3AuMjXmteMFbXdPQkLbem4yCaHt0q9zSLyUYAc6sz8papZnMxFkrqlD32r8cMere4EdTIqu5yw==
