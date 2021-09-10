@@ -1,12 +1,16 @@
 {
   "name": "ton-cli",
   "version": "0.0.1",
-  "repository": "https://github.com/ex3ndr/ton.git",
+  "repository": "https://github.com/ex3ndr/ton-cli.git",
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
   "main": "dist/index.js",
+  "bin": {
+    "ton-cli": "entry.sh"
+  },
   "files": [
-    "dist"
+    "dist",
+    "entry.sh"
   ],
   "scripts": {
     "build": "rm -fr build && tsc --declaration",
