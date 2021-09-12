@@ -1,0 +1,158 @@
+import { KeyStore, TonClient } from "ton";
+import { askPassword } from "./utils/askPassword";
+import { openKeystore } from "./utils/openKeystore";
+import { prompt } from 'enquirer';
+import { mnemonicToWalletKey, mnemonicValidate } from "ton-crypto";
+import fs from 'fs';
+import Table from 'cli-table';
+import ora from "ora";
+import { backoff } from '@openland/patterns';
+
+async function listKeys(store: KeyStore) {
+    var table = new Table({
+        head: ['Name', 'Address', 'Workchain', 'Kind'], colWidths: [16, 56, 16, 32]
+    });
+    for (let key of store.allKeys) {
+        table.push([key.name, key.address.toFriendly(), key.address.workChain + '', key.kind])
+    }
+    console.log(table.toString());
+    console.log('\n');
+}
+
+async function listBalances(client: TonClient, store: KeyStore) {
+    var table = new Table({
+        head: ['Name', 'Address', 'Balance'], colWidths: [16, 56, 16]
+    });
+    const spinner = ora('Fetching balances...').start();
+    for (let key of store.allKeys) {
+        spinner.text = 'Fetching balance ' + key.name;
+        let balance = await backoff(() => client.getBalance(key.address));
+        table.push([key.name, key.address.toFriendly(), '' + balance]);
+    }
+    spinner.succeed();
+    console.log(table.toString());
+    console.log('\n');
+}
+
+async function newKeys(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
+
+    let res = await prompt<{ count: '1' | '10' | '100' | '300', prefix: string }>([{
+        type: 'select',
+        name: 'count',
+        message: 'How many keys you want to create?',
+        choices: [
+            { message: '1', name: '1' },
+            { message: '10', name: '10' },
+            { message: '100', name: '100' },
+            { message: '300', name: '300' }
+        ],
+    }, {
+        type: 'input',
+        name: 'prefix',
+        message: 'Key name prefix',
+        initial: 'wallet',
+        validate: (src) => {
+            if (src.length === 0) {
+                return 'Prefix couldn\'t be empty';
+            }
+            return true;
+        }
+    }]);
+
+    // Create keys
+    const spinner = ora('Creating keys').start();
+    let count = parseInt(res.count, 10);
+    let index = 1;
+    for (let i = 0; i < count; i++) {
+        while (store.store.allKeys.find((v) => v.name === res.prefix + '_' + String(index).padStart(4, '0'))) {
+            index++;
+        }
+        let keyname = res.prefix + '_' + String(index).padStart(4, '0');
+        spinner.text = 'Creating key ' + keyname;
+        let wallet = await client.createNewWallet({ workchain: 0 });
+        await store.store.addKey({
+            name: keyname,
+            address: wallet.wallet.address,
+            kind: 'org.ton.wallets.v3',
+            config: '',
+            comment: '',
+            publicKey: wallet.key.publicKey
+        }, store.password, Buffer.from(wallet.mnemonic.join(' ')));
+    }
+    fs.writeFileSync(store.name, await store.store.save());
+    spinner.succeed('Keys created');
+}
+
+async function importKeys(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
+
+    let res = await prompt<{ name: string, mnemonics: string }>([{
+        type: 'input',
+        name: 'name',
+        message: 'Key name',
+        validate: (src) => {
+            if (store.store.allKeys.find((v) => v.name === src)) {
+                return 'Key already exist';
+            }
+            return true;
+        }
+    }, {
+        type: 'password',
+        name: 'mnemonics',
+        message: 'Mnemonics',
+        validate: (src) => mnemonicValidate(src.split(' '))
+    }]);
+
+    // Import key
+    let key = await mnemonicToWalletKey(res.mnemonics.split(' '));
+    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: 0, secretKey: key.secretKey });
+    await store.store.addKey({
+        name: res.name,
+        address: wallet.address,
+        kind: 'org.ton.wallets.v3',
+        config: '',
+        comment: '',
+        publicKey: key.publicKey
+    }, store.password, Buffer.from(res.mnemonics));
+    fs.writeFileSync(store.name, await store.store.save());
+}
+
+export async function viewKeystore() {
+    const store = await openKeystore();
+    if (!store) {
+        return;
+    }
+    const password = await askPassword(store.store);
+    const client = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
+
+    while (true) {
+        let res = await prompt<{ command: string }>([{
+            type: 'select',
+            name: 'command',
+            message: 'Pick command',
+            initial: 0,
+            choices: [
+                { message: 'List keys', name: 'list-keys' },
+                { message: 'Get balances', name: 'list-balances' },
+                { message: 'Create keys', name: 'create-keys' },
+                { message: 'Import keys', name: 'import-keys' },
+                { message: 'Exit', name: 'exit' }
+            ]
+        }]);
+
+        if (res.command === 'import-keys') {
+            await importKeys(client, { store: store.store, name: store.name, password });
+        }
+        if (res.command === 'list-keys') {
+            await listKeys(store.store);
+        }
+        if (res.command === 'list-balances') {
+            await listBalances(client, store.store);
+        }
+        if (res.command === 'create-keys') {
+            await newKeys(client, { store: store.store, name: store.name, password });
+        }
+        if (res.command === 'exit') {
+            return;
+        }
+    }
+}
