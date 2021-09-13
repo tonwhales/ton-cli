@@ -19,6 +19,21 @@ async function listKeys(store: KeyStore) {
     console.log('\n');
 }
 
+async function backupKeys(store: { store: KeyStore, name: string, password: string }) {
+    let backup: { name: string, address: string, mnemonics: string[] }[] = [];
+    const spinner = ora('Exporting keys...').start();
+    for (let key of store.store.allKeys) {
+        spinner.text = 'Exporting key ' + key.name;
+        let mnemonics = (await store.store.getSecretKey(key.name, store.password)).toString().split(' ');
+        if (!(await mnemonicValidate(mnemonics))) {
+            throw Error('Mnemonics are invalid');
+        }
+        backup.push({ name: key.name, address: key.address.toFriendly(), mnemonics });
+    }
+    fs.writeFileSync(store.name + '.backup', JSON.stringify(backup));
+    spinner.succeed();
+}
+
 async function listBalances(client: TonClient, store: KeyStore) {
     var table = new Table({
         head: ['Name', 'Address', 'Balance'], colWidths: [16, 56, 16]
@@ -135,6 +150,7 @@ export async function viewKeystore() {
                 { message: 'Get balances', name: 'list-balances' },
                 { message: 'Create keys', name: 'create-keys' },
                 { message: 'Import keys', name: 'import-keys' },
+                { message: 'Backup keys', name: 'backup-keys' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
@@ -150,6 +166,9 @@ export async function viewKeystore() {
         }
         if (res.command === 'create-keys') {
             await newKeys(client, { store: store.store, name: store.name, password });
+        }
+        if (res.command === 'backup-keys') {
+            await backupKeys({ store: store.store, name: store.name, password });
         }
         if (res.command === 'exit') {
             return;

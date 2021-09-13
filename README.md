@@ -10,6 +10,13 @@ Cross-platform cli for TON.
 npm install -g ton-cli
 ```
 
+## Testing
+
+Test keystore password: 
+```
+wealth pledge rural drive marble guitar venture fit grit kit clutch theme inhale program jealous lamp whisper split explain slide prosper better mansion flush
+```
+
 # License
 
 MIT
