@@ -22,7 +22,7 @@ async function listKeys(store: KeyStore) {
 }
 
 async function backupKeys(store: { store: KeyStore, name: string, password: string }) {
-    let backup: { name: string, address: string, mnemonics: string[] }[] = [];
+    let backup: { name: string, address: string, comment: string, config: string, kind: string, mnemonics: string[] }[] = [];
     const spinner = ora('Exporting keys...').start();
     for (let key of store.store.allKeys) {
         spinner.text = 'Exporting key ' + key.name;
@@ -30,7 +30,7 @@ async function backupKeys(store: { store: KeyStore, name: string, password: stri
         if (!(await mnemonicValidate(mnemonics))) {
             throw Error('Mnemonics are invalid');
         }
-        backup.push({ name: key.name, address: key.address.toFriendly(), mnemonics });
+        backup.push({ name: key.name, comment: key.comment, config: key.config, kind: key.kind, address: key.address.toFriendly(), mnemonics });
     }
     fs.writeFileSync(store.name + '.backup', JSON.stringify(backup));
     spinner.succeed();
@@ -195,7 +195,7 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
     let wallet = await client.openWalletDefaultFromSecretKey({ workchain: source.workChain, secretKey: key.secretKey });
     spinner.text = 'Preparing transfer';
     let seqno = await backoff(() => wallet.getSeqNo());
-    let deployed = await backoff(() => client.isContractDeployed(wallet.address));
+    let deployed = await backoff(() => client.isContractDeployed(target));
     if (!deployed) {
         spinner.stop();
         let conf = await prompt<{ confirm: string }>([{
@@ -216,7 +216,7 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
         value: toNano(res.amount),
         seqno: seqno,
         secretKey: key.secretKey,
-        bounce: !deployed
+        bounce: deployed
     }));
     spinner.succeed('Transfer sent');
 }

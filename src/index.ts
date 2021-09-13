@@ -4,6 +4,7 @@ import { viewKeystore } from './commands/viewKeystore';
 
 import yargs from 'yargs';
 import { Config } from './Config';
+import { restoreKeystore } from './commands/restoreKeystore';
 
 (async () => {
     try {
@@ -29,8 +30,9 @@ import { Config } from './Config';
             message: 'Pick command',
             initial: 0,
             choices: [
+                { message: 'Open keystore', name: 'open-keystore' },
                 { message: 'Create keystore', name: 'new-keystore' },
-                { message: 'Open keystore', name: 'open-keystore' }
+                { message: 'Restore keystore', name: 'restore-keystore' },
             ]
         }]);
         if (res.command === 'new-keystore') {
@@ -38,6 +40,9 @@ import { Config } from './Config';
         }
         if (res.command === 'open-keystore') {
             await viewKeystore(config);
+        }
+        if (res.command === 'restore-keystore') {
+            await restoreKeystore(config);
         }
     } catch (e) {
         console.warn(e);

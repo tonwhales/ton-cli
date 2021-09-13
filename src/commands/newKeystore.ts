@@ -27,7 +27,7 @@ export async function newKeystore(config: Config) {
     let keystore = await KeyStore.createNew(mnemonics.join(' '));
 
     // Save keystore
-    fs.writeFileSync(res.name + '.keystore', await keystore.save())
+    fs.writeFileSync(res.name + '.keystore', await keystore.save());
 
     // Complete
     spinner.succeed('Keystore password: ' + mnemonics.join(' '));
