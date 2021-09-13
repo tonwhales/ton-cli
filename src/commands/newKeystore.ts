@@ -3,8 +3,9 @@ import fs from 'fs';
 import { KeyStore } from 'ton';
 import { mnemonicNew } from 'ton-crypto';
 import ora from 'ora';
+import { Config } from '../Config';
 
-export async function newKeystore() {
+export async function newKeystore(config: Config) {
     let res = await prompt<{ name: string }>([{
         type: 'input',
         name: 'name',

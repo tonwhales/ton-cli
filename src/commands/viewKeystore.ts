@@ -7,6 +7,7 @@ import fs from 'fs';
 import Table from 'cli-table';
 import ora from "ora";
 import { backoff } from '@openland/patterns';
+import { Config } from "../Config";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -131,13 +132,13 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
     fs.writeFileSync(store.name, await store.store.save());
 }
 
-export async function viewKeystore() {
+export async function viewKeystore(config: Config) {
     const store = await openKeystore();
     if (!store) {
         return;
     }
     const password = await askPassword(store.store);
-    const client = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
+    const client = new TonClient({ endpoint: config.test ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://toncenter.com/api/v2/jsonRPC' });
 
     while (true) {
         let res = await prompt<{ command: string }>([{

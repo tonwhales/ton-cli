@@ -16,7 +16,7 @@
     "build": "rm -fr dist && tsc --declaration",
     "test": "jest --verbose --runInBand",
     "release": "yarn build && yarn test && yarn publish",
-    "cli": "yarn build && node ./dist/index.js"
+    "cli": "yarn build && node ./dist/index.js --test"
   },
   "devDependencies": {
     "@types/jest": "27.0.1",
