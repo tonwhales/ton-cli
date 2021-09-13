@@ -12,10 +12,10 @@ import { openContacts } from "./utils/openContacts";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'Address', 'Workchain', 'Kind'], colWidths: [16, 56, 16, 32]
+        head: ['Name', 'WC', 'Address', 'Kind'], colWidths: [16, 4, 56, 24]
     });
     for (let key of store.allKeys) {
-        table.push([key.name, key.address.toFriendly(), key.address.workChain + '', key.kind])
+        table.push([key.name, key.address.workChain + '', key.address.toFriendly(), key.kind])
     }
     console.log(table.toString());
     console.log('\n');
@@ -38,13 +38,13 @@ async function backupKeys(store: { store: KeyStore, name: string, password: stri
 
 async function listBalances(client: TonClient, store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'Address', 'Balance'], colWidths: [16, 56, 16]
+        head: ['Name', 'WC', 'Address', 'Balance', 'Kind'], colWidths: [16, 4, 56, 16, 24]
     });
     const spinner = ora('Fetching balances...').start();
     for (let key of store.allKeys) {
         spinner.text = 'Fetching balance ' + key.name;
         let balance = await backoff(() => client.getBalance(key.address));
-        table.push([key.name, key.address.toFriendly(), '' + balance]);
+        table.push([key.name, key.address.workChain + '', key.address.toFriendly(), '' + balance, key.kind]);
     }
     spinner.succeed();
     console.log(table.toString());
@@ -53,7 +53,15 @@ async function listBalances(client: TonClient, store: KeyStore) {
 
 async function newKeys(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
 
-    let res = await prompt<{ count: '1' | '10' | '100' | '300', prefix: string }>([{
+    let res = await prompt<{ workchain: string, count: '1' | '10' | '100' | '300', prefix: string }>([{
+        type: 'select',
+        name: 'workchain',
+        message: 'Target workchain',
+        choices: [
+            { message: 'Basic Workchain', name: '0', hint: '0' },
+            { message: 'Masterchain', name: '-1', hint: '-1' },
+        ]
+    }, {
         type: 'select',
         name: 'count',
         message: 'How many keys you want to create?',
@@ -79,6 +87,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
     // Create keys
     const spinner = ora('Creating keys').start();
     let count = parseInt(res.count, 10);
+    let workchain = parseInt(res.workchain, 10);
     let index = 1;
     for (let i = 0; i < count; i++) {
         while (store.store.allKeys.find((v) => v.name === res.prefix + '_' + String(index).padStart(4, '0'))) {
@@ -86,7 +95,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
         }
         let keyname = res.prefix + '_' + String(index).padStart(4, '0');
         spinner.text = 'Creating key ' + keyname;
-        let wallet = await client.createNewWallet({ workchain: 0 });
+        let wallet = await client.createNewWallet({ workchain: workchain });
         await store.store.addKey({
             name: keyname,
             address: wallet.wallet.address,
@@ -102,7 +111,15 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
 
 async function importKeys(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
 
-    let res = await prompt<{ name: string, mnemonics: string }>([{
+    let res = await prompt<{ name: string, workchain: string, mnemonics: string }>([{
+        type: 'select',
+        name: 'workchain',
+        message: 'Target workchain',
+        choices: [
+            { message: 'Basic Workchain', name: '0', hint: '0' },
+            { message: 'Masterchain', name: '-1', hint: '-1' },
+        ]
+    }, {
         type: 'input',
         name: 'name',
         message: 'Key name',
@@ -120,8 +137,9 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
     }]);
 
     // Import key
+    const workchain = parseInt(res.workchain, 10);
     let key = await mnemonicToWalletKey(res.mnemonics.split(' '));
-    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: 0, secretKey: key.secretKey });
+    let wallet = await client.openWalletDefaultFromSecretKey({ workchain, secretKey: key.secretKey });
     await store.store.addKey({
         name: res.name,
         address: wallet.address,
@@ -167,22 +185,38 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
 
     // Read key
     const spinner = ora('Loading key').start();
+    let target = contacts.find((v) => v.name === res.send_to)!.address;
+    let source = store.store.allKeys.find((v) => v.name === res.send_from)!.address;
     let mnemonics = (await store.store.getSecretKey(res.send_from, store.password)).toString().split(' ');
     if (!(await mnemonicValidate(mnemonics))) {
         throw Error('Mnemonics are invalid');
     }
     let key = await mnemonicToWalletKey(mnemonics);
-    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: 0, secretKey: key.secretKey });
+    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: source.workChain, secretKey: key.secretKey });
     spinner.text = 'Preparing transfer';
     let seqno = await backoff(() => wallet.getSeqNo());
-    let target = contacts.find((v) => v.name === res.send_to)!.address;
-    spinner.text = 'Send tranfer';
+    let deployed = await backoff(() => client.isContractDeployed(wallet.address));
+    if (!deployed) {
+        spinner.stop();
+        let conf = await prompt<{ confirm: string }>([{
+            type: 'confirm',
+            name: 'confirm',
+            message: 'Recepient account is not activated. Do you want to continue?',
+            initial: false
+        }]);
+        if (!conf.confirm) {
+            return;
+        }
+        spinner.start('Sending tranfer');
+    } else {
+        spinner.text = 'Sending tranfer';
+    }
     await backoff(() => wallet.transfer({
         to: target,
         value: toNano(res.amount),
         seqno: seqno,
         secretKey: key.secretKey,
-        bounce: false
+        bounce: !deployed
     }));
     spinner.succeed('Transfer sent');
 }
