@@ -1,4 +1,4 @@
-import { KeyStore, TonClient } from "ton";
+import { Address, KeyStore, toNano, TonClient } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -8,6 +8,7 @@ import Table from 'cli-table';
 import ora from "ora";
 import { backoff } from '@openland/patterns';
 import { Config } from "../Config";
+import { openContacts } from "./utils/openContacts";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -132,6 +133,56 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
     fs.writeFileSync(store.name, await store.store.save());
 }
 
+async function transfer(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
+    let contacts = await openContacts();
+    if (contacts.length === 0) {
+        console.warn('contacts.json is empty or does not exist');
+    }
+    let res = await prompt<{ send_from: string, send_to: string, amount: number }>([{
+        type: 'select',
+        name: 'send_from',
+        message: 'Send from',
+        initial: 0,
+        choices: store.store.allKeys.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }, {
+        type: 'select',
+        name: 'send_to',
+        message: 'Send to',
+        initial: 0,
+        choices: contacts.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }, {
+        type: 'numeral',
+        name: 'amount',
+        message: 'Amount',
+        initial: 0
+    }]);
+
+    // Read key
+    let mnemonics = (await store.store.getSecretKey(res.send_from, store.password)).toString().split(' ');
+    if (!(await mnemonicValidate(mnemonics))) {
+        throw Error('Mnemonics are invalid');
+    }
+    let key = await mnemonicToWalletKey(mnemonics);
+    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: 0, secretKey: key.secretKey });
+    let seqno = await backoff(() => wallet.getSeqNo());
+    let target = contacts.find((v) => v.name === res.send_to)!.address;
+    await backoff(() => wallet.transfer({
+        to: target,
+        value: toNano(res.amount),
+        seqno: seqno,
+        secretKey: key.secretKey,
+        bounce: false
+    }));
+}
+
 export async function viewKeystore(config: Config) {
     const store = await openKeystore();
     if (!store) {
@@ -149,6 +200,7 @@ export async function viewKeystore(config: Config) {
             choices: [
                 { message: 'List keys', name: 'list-keys' },
                 { message: 'Get balances', name: 'list-balances' },
+                { message: 'Transfer', name: 'transfer' },
                 { message: 'Create keys', name: 'create-keys' },
                 { message: 'Import keys', name: 'import-keys' },
                 { message: 'Backup keys', name: 'backup-keys' },
@@ -167,6 +219,9 @@ export async function viewKeystore(config: Config) {
         }
         if (res.command === 'create-keys') {
             await newKeys(client, { store: store.store, name: store.name, password });
+        }
+        if (res.command === 'transfer') {
+            await transfer(client, { store: store.store, name: store.name, password });
         }
         if (res.command === 'backup-keys') {
             await backupKeys({ store: store.store, name: store.name, password });
