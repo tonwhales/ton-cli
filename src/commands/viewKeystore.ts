@@ -9,6 +9,8 @@ import ora from "ora";
 import { backoff } from '@openland/patterns';
 import { Config } from "../Config";
 import { openContacts } from "./utils/openContacts";
+import { askConfirm } from "./utils/askConfirm";
+import { askText } from "./utils/askText";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -21,18 +23,32 @@ async function listKeys(store: KeyStore) {
     console.log('\n');
 }
 
-async function backupKeys(store: { store: KeyStore, name: string, password: string }) {
+async function backupKeys(store: { store: KeyStore, name: string }) {
+
+    // Confirm
+    if (!(await askConfirm('Backup stores keys in UNENCRYPTED FORM. Are you sure want to export unencrypted keys to disk?'))) {
+        return;
+    }
+
+    // Ask for password
+    const password = await askPassword(store.store);
+
+    // Ask for name
+    let srcName = store.name.substring(0, store.name.length - '.keystore'.length);
+    let destName = await askText({ message: 'Backup name', initial: srcName });
+
+    // Backup
     let backup: { name: string, address: string, comment: string, config: string, kind: string, mnemonics: string[] }[] = [];
     const spinner = ora('Exporting keys...').start();
     for (let key of store.store.allKeys) {
         spinner.text = 'Exporting key ' + key.name;
-        let mnemonics = (await store.store.getSecretKey(key.name, store.password)).toString().split(' ');
+        let mnemonics = (await store.store.getSecret(key.name, password)).toString().split(' ');
         if (!(await mnemonicValidate(mnemonics))) {
             throw Error('Mnemonics are invalid');
         }
         backup.push({ name: key.name, comment: key.comment, config: key.config, kind: key.kind, address: key.address.toFriendly(), mnemonics });
     }
-    fs.writeFileSync(store.name + '.backup', JSON.stringify(backup));
+    fs.writeFileSync(destName + '.keystore.backup', JSON.stringify(backup));
     spinner.succeed();
 }
 
@@ -51,7 +67,7 @@ async function listBalances(client: TonClient, store: KeyStore) {
     console.log('\n');
 }
 
-async function newKeys(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
+async function newKeys(client: TonClient, store: { store: KeyStore, name: string }) {
 
     let res = await prompt<{ workchain: string, count: '1' | '10' | '100' | '300', prefix: string }>([{
         type: 'select',
@@ -103,13 +119,13 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             config: '',
             comment: '',
             publicKey: wallet.key.publicKey
-        }, store.password, Buffer.from(wallet.mnemonic.join(' ')));
+        }, Buffer.from(wallet.mnemonic.join(' ')));
     }
     fs.writeFileSync(store.name, await store.store.save());
     spinner.succeed('Keys created');
 }
 
-async function importKeys(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
+async function importKeys(client: TonClient, store: { store: KeyStore, name: string }) {
 
     let res = await prompt<{ name: string, workchain: string, mnemonics: string }>([{
         type: 'select',
@@ -147,15 +163,19 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
         config: '',
         comment: '',
         publicKey: key.publicKey
-    }, store.password, Buffer.from(res.mnemonics));
+    }, Buffer.from(res.mnemonics));
     fs.writeFileSync(store.name, await store.store.save());
 }
 
-async function transfer(client: TonClient, store: { store: KeyStore, name: string, password: string }) {
+async function transfer(client: TonClient, store: { store: KeyStore, name: string }) {
+
+    // Checl contacts
     let contacts = await openContacts();
     if (contacts.length === 0) {
         console.warn('contacts.json is empty or does not exist');
+        return;
     }
+
     let res = await prompt<{ send_from: string, send_to: string, amount: number }>([{
         type: 'select',
         name: 'send_from',
@@ -183,11 +203,14 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
         initial: 0
     }]);
 
+    // Ask for store password
+    const password = await askPassword(store.store);
+
     // Read key
     const spinner = ora('Loading key').start();
     let target = contacts.find((v) => v.name === res.send_to)!.address;
     let source = store.store.allKeys.find((v) => v.name === res.send_from)!.address;
-    let mnemonics = (await store.store.getSecretKey(res.send_from, store.password)).toString().split(' ');
+    let mnemonics = (await store.store.getSecret(res.send_from, password)).toString().split(' ');
     if (!(await mnemonicValidate(mnemonics))) {
         throw Error('Mnemonics are invalid');
     }
@@ -226,7 +249,6 @@ export async function viewKeystore(config: Config) {
     if (!store) {
         return;
     }
-    const password = await askPassword(store.store);
     const client = new TonClient({ endpoint: config.test ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://toncenter.com/api/v2/jsonRPC' });
 
     while (true) {
@@ -246,7 +268,7 @@ export async function viewKeystore(config: Config) {
         }]);
 
         if (res.command === 'import-keys') {
-            await importKeys(client, { store: store.store, name: store.name, password });
+            await importKeys(client, { store: store.store, name: store.name });
         }
         if (res.command === 'list-keys') {
             if (config.offline) {
@@ -256,13 +278,13 @@ export async function viewKeystore(config: Config) {
             }
         }
         if (res.command === 'create-keys') {
-            await newKeys(client, { store: store.store, name: store.name, password });
+            await newKeys(client, { store: store.store, name: store.name });
         }
         if (res.command === 'transfer') {
-            await transfer(client, { store: store.store, name: store.name, password });
+            await transfer(client, { store: store.store, name: store.name });
         }
         if (res.command === 'backup-keys') {
-            await backupKeys({ store: store.store, name: store.name, password });
+            await backupKeys({ store: store.store, name: store.name });
         }
         if (res.command === 'exit') {
             return;

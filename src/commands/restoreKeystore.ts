@@ -67,7 +67,7 @@ export async function restoreKeystore(config: Config) {
                 config: b.config,
                 comment: b.comment,
                 publicKey: key.publicKey
-            }, mnemonics.join(' '), Buffer.from(b.mnemonics.join(' ')));
+            }, Buffer.from(b.mnemonics.join(' ')));
         }
         fs.writeFileSync(res.name + '.keystore', await keystore.save());
 

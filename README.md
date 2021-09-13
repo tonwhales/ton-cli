@@ -14,7 +14,7 @@ npm install -g ton-cli
 
 Test keystore password: 
 ```
-wealth pledge rural drive marble guitar venture fit grit kit clutch theme inhale program jealous lamp whisper split explain slide prosper better mansion flush
+sleep fan egg excess risk friend column remain seven bread disagree culture quick pride crush they ancient access flock settle prison kick tube word
 ```
 
 # License

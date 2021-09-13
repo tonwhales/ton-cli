@@ -2725,17 +2725,25 @@ ton-crypto@1.3.0:
   dependencies:
     tweetnacl "1.0.3"
 
-ton@2.5.0:
-  version "2.5.0"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-2.5.0.tgz#e4be213e51a664f1623e5a8ccf9c2f31692e9764"
-  integrity sha512-Qf/i0mYUxZQJONJEw9WnqGSOdqU7gQNoM0VDjbuJEryx8IhdaLBZANrTakbj25qxoRPkw7zbarHUSUos6Z4YFA==
+ton-crypto@1.3.2:
+  version "1.3.2"
+  resolved "https://registry.yarnpkg.com/ton-crypto/-/ton-crypto-1.3.2.tgz#34f18979d6c8f083c7ea8d4741b14ad79a352515"
+  integrity sha512-2v8WgCnJzOSfRWdmxac/mkphCRQF32r7HXAJFDSeUtzBK71Rnud10MgEo3YkwD1sG4hB8UYffRH+49Wl7X+i9A==
+  dependencies:
+    tweetnacl "1.0.3"
+
+ton@2.6.0:
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-2.6.0.tgz#5c0a0ddb3c5c8cdde0c51860094b704cacf99ff4"
+  integrity sha512-fgW891GPJeH6tG50188KoiB/tl0gtv86lYLIBAfZpcIYsqK14ZXzJMbIENXXIVvgeHzZ0NzGrlc83sUEgZbe+A==
   dependencies:
     bn.js "5.2.0"
     fp-ts "^2.11.1"
     io-ts "^2.2.16"
     isomorphic-unfetch "3.1.0"
-    ton-crypto "1.3.0"
+    ton-crypto "1.3.2"
     tonweb "0.0.18"
+    tweetnacl "^1.0.3"
 
 tonweb@0.0.18:
   version "0.0.18"
