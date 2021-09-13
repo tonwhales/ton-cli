@@ -1,4 +1,4 @@
-import { Address, KeyStore, toNano, TonClient } from "ton";
+import { KeyStore, toNano, TonClient } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -166,14 +166,17 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
     }]);
 
     // Read key
+    const spinner = ora('Loading key').start();
     let mnemonics = (await store.store.getSecretKey(res.send_from, store.password)).toString().split(' ');
     if (!(await mnemonicValidate(mnemonics))) {
         throw Error('Mnemonics are invalid');
     }
     let key = await mnemonicToWalletKey(mnemonics);
     let wallet = await client.openWalletDefaultFromSecretKey({ workchain: 0, secretKey: key.secretKey });
+    spinner.text = 'Preparing transfer';
     let seqno = await backoff(() => wallet.getSeqNo());
     let target = contacts.find((v) => v.name === res.send_to)!.address;
+    spinner.text = 'Send tranfer';
     await backoff(() => wallet.transfer({
         to: target,
         value: toNano(res.amount),
@@ -181,6 +184,7 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
         secretKey: key.secretKey,
         bounce: false
     }));
+    spinner.succeed('Transfer sent');
 }
 
 export async function viewKeystore(config: Config) {
@@ -198,12 +202,11 @@ export async function viewKeystore(config: Config) {
             message: 'Pick command',
             initial: 0,
             choices: [
-                { message: 'List keys', name: 'list-keys' },
-                { message: 'Get balances', name: 'list-balances' },
+                { message: 'List wallets', name: 'list-keys' },
                 { message: 'Transfer', name: 'transfer' },
-                { message: 'Create keys', name: 'create-keys' },
-                { message: 'Import keys', name: 'import-keys' },
-                { message: 'Backup keys', name: 'backup-keys' },
+                { message: 'Create wallets', name: 'create-keys' },
+                { message: 'Import wallets', name: 'import-keys' },
+                { message: 'Backup wallets', name: 'backup-keys' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
@@ -212,10 +215,11 @@ export async function viewKeystore(config: Config) {
             await importKeys(client, { store: store.store, name: store.name, password });
         }
         if (res.command === 'list-keys') {
-            await listKeys(store.store);
-        }
-        if (res.command === 'list-balances') {
-            await listBalances(client, store.store);
+            if (config.offline) {
+                await listKeys(store.store);
+            } else {
+                await listBalances(client, store.store);
+            }
         }
         if (res.command === 'create-keys') {
             await newKeys(client, { store: store.store, name: store.name, password });

@@ -12,10 +12,12 @@ import { Config } from './Config';
             .scriptName("ton-cli")
             .usage('$0 ton-cli [args]')
             .boolean('test')
+            .boolean('offline')
             .parseAsync();
 
         const config: Config = {
-            test: parsed.test ? true : false
+            test: parsed.test ? true : false,
+            offline: parsed.offline ? true : false
         }
         if (config.test) {
             console.warn('Running in TEST mode');
