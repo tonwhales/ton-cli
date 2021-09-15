@@ -5,8 +5,9 @@
 CLI client for TON.
 
 ## Features
+- 🚀 Works anywhere and does not require to install local TON node
 - 🔐 Encrypted storage of wallets
-- 🚀 Multiple wallets (even thousands of them if you wish)
+- 💸 Multiple wallets (even thousands of them if you wish)
 - 🍰 Get balance
 - ✈️ Transfers
 - 💾 Unecnrypted backups that could be also used to import to other keystores if needed
