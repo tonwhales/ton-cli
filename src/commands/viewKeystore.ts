@@ -244,6 +244,49 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
     spinner.succeed('Transfer sent');
 }
 
+async function exportWalletForTon(client: TonClient, store: KeyStore) {
+    let res = await prompt<{ export_wallet: string, name: string }>([{
+        type: 'select',
+        name: 'export_wallet',
+        message: 'Export Wallet',
+        initial: 0,
+        choices: store.allKeys.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }, {
+        type: 'input',
+        name: 'name',
+        message: 'File name (without extension)',
+        initial: 'wallet_0001',
+        validate: (src) => {
+            if (src.trim().length === 0) {
+                return 'Name couldn\'t be empty'
+            } else {
+                return true;
+            }
+        }
+    }]);
+
+
+    // Ask for store password
+    const password = await askPassword(store);
+
+    // Read key
+    const spinner = ora('Loading key').start();
+    let source = store.allKeys.find((v) => v.name === res.export_wallet)!.address;
+    let mnemonics = (await store.getSecret(res.export_wallet, password)).toString().split(' ');
+    if (!(await mnemonicValidate(mnemonics))) {
+        throw Error('Mnemonics are invalid');
+    }
+    let key = await mnemonicToWalletKey(mnemonics);
+    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: source.workChain, secretKey: key.secretKey });
+    fs.writeFileSync(res.name + '.addr', wallet.address.toBuffer());
+    fs.writeFileSync(res.name + '.pk', key.secretKey.slice(0, 32));
+    spinner.succeed('Written files ' + res.name + '.addr' + ' and ' + res.name + '.pk');
+}
+
 export async function viewKeystore(config: Config) {
     const store = await openKeystore();
     if (!store) {
@@ -261,6 +304,7 @@ export async function viewKeystore(config: Config) {
                 { message: 'List wallets', name: 'list-keys' },
                 { message: 'Transfer', name: 'transfer' },
                 { message: 'Create wallets', name: 'create-keys' },
+                { message: 'Export wallet for TON Node', name: 'export-wallet' },
                 { message: 'Import wallets', name: 'import-keys' },
                 { message: 'Backup wallets', name: 'backup-keys' },
                 { message: 'Exit', name: 'exit' }
@@ -285,6 +329,9 @@ export async function viewKeystore(config: Config) {
         }
         if (res.command === 'backup-keys') {
             await backupKeys({ store: store.store, name: store.name });
+        }
+        if (res.command === 'export-wallet') {
+            await exportWalletForTon(client, store.store);
         }
         if (res.command === 'exit') {
             return;
