@@ -317,14 +317,14 @@ async function exportWalletForTon(client: TonClient, store: KeyStore) {
 
     // Read key
     const spinner = ora('Loading key').start();
-    let source = store.allKeys.find((v) => v.name === res.export_wallet)!.address;
+    let source = store.allKeys.find((v) => v.name === res.export_wallet)!;
+    let sourceAddress = source.address;
     let mnemonics = (await store.getSecret(res.export_wallet, password)).toString().split(' ');
     if (!(await mnemonicValidate(mnemonics))) {
         throw Error('Mnemonics are invalid');
     }
     let key = await mnemonicToWalletKey(mnemonics);
-    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: source.workChain, secretKey: key.secretKey });
-    fs.writeFileSync(res.name + '.addr', wallet.address.toBuffer());
+    fs.writeFileSync(res.name + '.addr', sourceAddress.toBuffer());
     fs.writeFileSync(res.name + '.pk', exportKey(key.secretKey));
     spinner.succeed('Written files ' + res.name + '.addr' + ' and ' + res.name + '.pk');
 }
