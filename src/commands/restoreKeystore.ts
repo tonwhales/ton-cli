@@ -3,7 +3,7 @@ import fs from 'fs';
 import ora from 'ora';
 import { prompt } from 'enquirer';
 import { mnemonicNew, mnemonicToWalletKey } from 'ton-crypto';
-import { Address, KeyStore, TonClient } from 'ton';
+import { Address, KeyStore, TonClient, validateWalletType } from 'ton';
 import * as t from 'io-ts';
 import { isRight } from 'fp-ts/lib/Either';
 
@@ -59,7 +59,13 @@ export async function restoreKeystore(config: Config) {
             spinner.text = 'Importing ' + b.name;
             let address = Address.parseFriendly(b.address).address;
             let key = await mnemonicToWalletKey(b.mnemonics);
-            let wallet = await client.openWalletDefaultFromSecretKey({ workchain: address.workChain, secretKey: key.secretKey });
+            let kind = validateWalletType(b.kind);
+            if (!kind) {
+                spinner.fail('Invalid backup file');
+                return;
+            }
+            let wallet = await client.openWalletFromAddress({ source: address });
+            await wallet.prepare(address.workChain, key.publicKey, kind);
             await keystore.addKey({
                 name: b.name,
                 address: wallet.address,

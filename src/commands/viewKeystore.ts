@@ -1,4 +1,4 @@
-import { KeyStore, toNano, TonClient } from "ton";
+import { KeyStore, toNano, TonClient, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -70,13 +70,26 @@ async function listBalances(client: TonClient, store: KeyStore) {
 
 async function newKeys(client: TonClient, store: { store: KeyStore, name: string }) {
 
-    let res = await prompt<{ workchain: string, count: '1' | '10' | '100' | '300', prefix: string }>([{
+    let res = await prompt<{ workchain: string, kind: string, count: '1' | '10' | '100' | '300', prefix: string }>([{
         type: 'select',
         name: 'workchain',
         message: 'Target workchain',
         choices: [
             { message: 'Basic Workchain', name: '0', hint: '0' },
             { message: 'Masterchain', name: '-1', hint: '-1' },
+        ]
+    }, {
+        type: 'select',
+        name: 'kind',
+        message: 'Wallet Type',
+        choices: [
+            { message: 'Wallet v3', name: 'org.ton.wallets.v3', hint: 'default' },
+            { message: 'Wallet v3r2', name: 'org.ton.wallets.v3.r2' },
+            { message: 'Wallet v2', name: 'org.ton.wallets.v2' },
+            { message: 'Wallet v2r2', name: 'org.ton.wallets.v2.r2' },
+            { message: 'Wallet v1', name: 'org.ton.wallets.simple', hint: 'unsupported' },
+            { message: 'Wallet v1r2', name: 'org.ton.wallets.simple.r2' },
+            { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' }
         ]
     }, {
         type: 'select',
@@ -100,6 +113,10 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             return true;
         }
     }]);
+    let kind = validateWalletType(res.kind);
+    if (!kind) {
+        throw Error('Invalid kind');
+    }
 
     // Create keys
     const spinner = ora('Creating keys').start();
@@ -112,11 +129,11 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
         }
         let keyname = res.prefix + '_' + String(index).padStart(4, '0');
         spinner.text = 'Creating key ' + keyname;
-        let wallet = await client.createNewWallet({ workchain: workchain });
+        let wallet = await client.createNewWallet({ workchain: workchain, type: kind });
         await store.store.addKey({
             name: keyname,
             address: wallet.wallet.address,
-            kind: 'org.ton.wallets.v3',
+            kind: kind,
             config: '',
             comment: '',
             publicKey: wallet.key.publicKey
@@ -128,13 +145,26 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
 
 async function importKeys(client: TonClient, store: { store: KeyStore, name: string }) {
 
-    let res = await prompt<{ name: string, workchain: string, mnemonics: string }>([{
+    let res = await prompt<{ name: string, kind: string, workchain: string, mnemonics: string }>([{
         type: 'select',
         name: 'workchain',
         message: 'Target workchain',
         choices: [
             { message: 'Basic Workchain', name: '0', hint: '0' },
             { message: 'Masterchain', name: '-1', hint: '-1' },
+        ]
+    }, {
+        type: 'select',
+        name: 'kind',
+        message: 'Wallet Type',
+        choices: [
+            { message: 'Wallet v3', name: 'org.ton.wallets.v3', hint: 'default' },
+            { message: 'Wallet v3r2', name: 'org.ton.wallets.v3.r2' },
+            { message: 'Wallet v2', name: 'org.ton.wallets.v2' },
+            { message: 'Wallet v2r2', name: 'org.ton.wallets.v2.r2' },
+            { message: 'Wallet v1', name: 'org.ton.wallets.simple', hint: 'unsupported' },
+            { message: 'Wallet v1r2', name: 'org.ton.wallets.simple.r2' },
+            { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' }
         ]
     }, {
         type: 'input',
@@ -156,11 +186,15 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
     // Import key
     const workchain = parseInt(res.workchain, 10);
     let key = await mnemonicToWalletKey(res.mnemonics.split(' '));
-    let wallet = await client.openWalletDefaultFromSecretKey({ workchain, secretKey: key.secretKey });
+    let kind = validateWalletType(res.kind);
+    if (!kind) {
+        throw Error('Invalid kind');
+    }
+    let wallet = await client.openWalletFromSecretKey({ workchain, secretKey: key.secretKey, type: kind });
     await store.store.addKey({
         name: res.name,
         address: wallet.address,
-        kind: 'org.ton.wallets.v3',
+        kind: kind,
         config: '',
         comment: '',
         publicKey: key.publicKey
@@ -210,13 +244,20 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
     // Read key
     const spinner = ora('Loading key').start();
     let target = contacts.find((v) => v.name === res.send_to)!.address;
-    let source = store.store.allKeys.find((v) => v.name === res.send_from)!.address;
+    let source = store.store.allKeys.find((v) => v.name === res.send_from)!;
+    let sourceAddress = source.address;
     let mnemonics = (await store.store.getSecret(res.send_from, password)).toString().split(' ');
     if (!(await mnemonicValidate(mnemonics))) {
         throw Error('Mnemonics are invalid');
     }
     let key = await mnemonicToWalletKey(mnemonics);
-    let wallet = await client.openWalletDefaultFromSecretKey({ workchain: source.workChain, secretKey: key.secretKey });
+    let wallet = await client.openWalletFromAddress({ source: sourceAddress });
+    let kind = validateWalletType(source.kind);
+    if (!kind) {
+        throw Error('Invalid wallet kind');
+    }
+    await wallet.prepare(sourceAddress.workChain, key.publicKey, kind);
+
     spinner.text = 'Preparing transfer';
     let seqno = await backoff(() => wallet.getSeqNo());
     let deployed = await backoff(() => client.isContractDeployed(target));
