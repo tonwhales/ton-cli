@@ -11,6 +11,7 @@ import { Config } from "../Config";
 import { openContacts } from "./utils/openContacts";
 import { askConfirm } from "./utils/askConfirm";
 import { askText } from "./utils/askText";
+import { exportKey } from "./utils/exportKey";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -283,7 +284,7 @@ async function exportWalletForTon(client: TonClient, store: KeyStore) {
     let key = await mnemonicToWalletKey(mnemonics);
     let wallet = await client.openWalletDefaultFromSecretKey({ workchain: source.workChain, secretKey: key.secretKey });
     fs.writeFileSync(res.name + '.addr', wallet.address.toBuffer());
-    fs.writeFileSync(res.name + '.pk', key.secretKey.slice(0, 32));
+    fs.writeFileSync(res.name + '.pk', exportKey(key.secretKey));
     spinner.succeed('Written files ' + res.name + '.addr' + ' and ' + res.name + '.pk');
 }
 
