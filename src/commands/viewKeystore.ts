@@ -1,4 +1,4 @@
-import { KeyStore, toNano, TonClient, validateWalletType } from "ton";
+import { fromNano, KeyStore, toNano, TonClient, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -61,7 +61,7 @@ async function listBalances(client: TonClient, store: KeyStore) {
     for (let key of store.allKeys) {
         spinner.text = 'Fetching balance ' + key.name;
         let balance = await backoff(() => client.getBalance(key.address));
-        table.push([key.name, key.address.workChain + '', key.address.toFriendly(), '' + balance, key.kind]);
+        table.push([key.name, key.address.workChain + '', key.address.toFriendly(), fromNano(balance), key.kind]);
     }
     spinner.succeed();
     console.log(table.toString());
