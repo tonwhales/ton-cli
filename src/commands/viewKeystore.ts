@@ -1,4 +1,4 @@
-import { fromNano, KeyStore, toNano, TonClient, validateWalletType } from "ton";
+import { Address, fromNano, KeyStore, toNano, TonClient, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -13,10 +13,15 @@ import { askConfirm } from "./utils/askConfirm";
 import { askText } from "./utils/askText";
 import { exportKey } from "./utils/exportKey";
 import { createGenericWalletSource, restoreWalletSource } from "./storage/walletSources";
+import { askMnemonics } from "./utils/askMnemonics";
+import { WhitelistedWalletSource } from "ton-contracts";
+import { contractAddress } from "ton/dist/contracts/sources/ContractSource";
+import { askAddress } from "./utils/askAddress";
+import { askKeyName } from "./utils/askKeyName";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'WC', 'Address', 'Kind'], colWidths: [16, 4, 56, 24]
+        head: ['Name', 'WC', 'Address', 'Kind'], colWidths: [24, 4, 56, 32]
     });
     for (let key of store.allKeys) {
         table.push([key.name, key.address.workChain + '', key.address.toFriendly(), key.kind])
@@ -56,7 +61,7 @@ async function backupKeys(store: { store: KeyStore, name: string }) {
 
 async function listBalances(client: TonClient, store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'WC', 'Address', 'Balance', 'Kind'], colWidths: [16, 4, 56, 16, 24]
+        head: ['Name', 'WC', 'Address', 'Balance', 'Kind'], colWidths: [24, 4, 56, 16, 32]
     });
     const spinner = ora('Fetching balances...').start();
     for (let key of store.allKeys) {
@@ -146,7 +151,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
 
 async function importKeys(client: TonClient, store: { store: KeyStore, name: string }) {
 
-    let res = await prompt<{ name: string, kind: string, workchain: string, mnemonics: string }>([{
+    let res = await prompt<{ kind: string, workchain: string }>([{
         type: 'select',
         name: 'workchain',
         message: 'Target workchain',
@@ -165,41 +170,79 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
             { message: 'Wallet v2r2', name: 'org.ton.wallets.v2.r2' },
             { message: 'Wallet v1', name: 'org.ton.wallets.simple', hint: 'unsupported' },
             { message: 'Wallet v1r2', name: 'org.ton.wallets.simple.r2' },
-            { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' }
+            { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' },
+            { message: 'Restricted (Whitelisted)', name: 'org.ton.wallets.whitelisted', hint: 'restricted wallet' }
         ]
-    }, {
-        type: 'input',
-        name: 'name',
-        message: 'Key name',
-        validate: (src) => {
-            if (store.store.allKeys.find((v) => v.name === src)) {
-                return 'Key already exist';
-            }
-            return true;
-        }
-    }, {
-        type: 'password',
-        name: 'mnemonics',
-        message: 'Mnemonics',
-        validate: (src) => mnemonicValidate(src.split(' '))
     }]);
 
-    // Resolve contract
+    // Resolve parameters
     const workchain = parseInt(res.workchain, 10);
-    let key = await mnemonicToWalletKey(res.mnemonics.split(' '));
+
+    // Custom contract
+    if (res.kind === 'org.ton.wallets.whitelisted') {
+
+        // Key Parameters
+        const restrictedMnemonics = await askMnemonics('Restricted Key mnemonics');
+        const masterMnemonics = await askMnemonics('Main Key mnemonics');
+        const whitelistedAddress = await askAddress({ message: 'Whitelisted address' });
+
+        // Create contract
+        let restrictedKey = await mnemonicToWalletKey(restrictedMnemonics);
+        let masterKey = await mnemonicToWalletKey(masterMnemonics);
+        let source = WhitelistedWalletSource.create({
+            masterKey: masterKey.publicKey,
+            restrictedKey: restrictedKey.publicKey,
+            workchain,
+            whitelistedAddress: whitelistedAddress
+        });
+        let address = await contractAddress(source);
+        let config = source.backup();
+
+        // Persist restricted key
+        const restrictedName = await askKeyName('Restricted key name', store.store);
+        await store.store.addKey({
+            name: restrictedName,
+            address: address,
+            kind: source.type,
+            config: config,
+            comment: '',
+            publicKey: restrictedKey.publicKey
+        }, Buffer.from(restrictedMnemonics.join(' ')));
+
+        // Persist master key
+        const masterName = await askKeyName('Master key name', store.store);
+        await store.store.addKey({
+            name: masterName,
+            address: address,
+            kind: source.type,
+            config: config,
+            comment: '',
+            publicKey: masterKey.publicKey
+        }, Buffer.from(masterMnemonics.join(' ')));
+
+        // Write to disk
+        fs.writeFileSync(store.name, await store.store.save());
+
+        return;
+    }
+
+    // Generic contract
+    const name = await askKeyName('Key name', store.store);
+    const mnemonics = await askMnemonics('Key mnemonics');
+    let key = await mnemonicToWalletKey(mnemonics);
     let source = createGenericWalletSource(res.kind, workchain, key.publicKey);
-    let wallet = await client.openWalletFromCustomContract(source);
+    let address = await contractAddress(source);
     let config = source.backup();
 
     // Persist contract
     await store.store.addKey({
-        name: res.name,
-        address: wallet.address,
+        name: name,
+        address: address,
         kind: source.type,
         config: config,
         comment: '',
         publicKey: key.publicKey
-    }, Buffer.from(res.mnemonics));
+    }, Buffer.from(mnemonics.join(' ')));
     fs.writeFileSync(store.name, await store.store.save());
 }
 
