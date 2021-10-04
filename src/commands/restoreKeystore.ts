@@ -3,9 +3,10 @@ import fs from 'fs';
 import ora from 'ora';
 import { prompt } from 'enquirer';
 import { mnemonicNew, mnemonicToWalletKey } from 'ton-crypto';
-import { Address, KeyStore, TonClient, validateWalletType } from 'ton';
+import { Address, KeyStore, TonClient } from 'ton';
 import * as t from 'io-ts';
 import { isRight } from 'fp-ts/lib/Either';
+import { restoreWalletSource } from './storage/walletSources';
 
 const codec = t.array(t.type({
     address: t.string,
@@ -57,20 +58,30 @@ export async function restoreKeystore(config: Config) {
         const client = new TonClient({ endpoint: '' });
         for (let b of backup.right) {
             spinner.text = 'Importing ' + b.name;
-            let address = Address.parseFriendly(b.address).address;
+
+            // Load contract
             let key = await mnemonicToWalletKey(b.mnemonics);
-            let kind = validateWalletType(b.kind);
-            if (!kind) {
-                spinner.fail('Invalid backup file');
-                return;
+            let address = Address.parseFriendly(b.address).address;
+            let contract = restoreWalletSource(b.kind, address, key.publicKey, b.config);
+            if (contract.type !== b.kind) {
+                throw Error('Contract type mismatch');
             }
-            let wallet = await client.openWalletFromAddress({ source: address });
-            await wallet.prepare(address.workChain, key.publicKey, kind);
+
+            // Check contract and address
+            let wallet = await client.openWalletFromCustomContract(contract);
+            if (!wallet.address.equals(address)) {
+                throw Error('Address mismatch');
+            }
+
+            // Backup contract
+            let config = contract.backup();
+
+            // Add to keystore
             await keystore.addKey({
                 name: b.name,
                 address: wallet.address,
-                kind: b.kind,
-                config: b.config,
+                kind: contract.type,
+                config: config,
                 comment: b.comment,
                 publicKey: key.publicKey
             }, Buffer.from(b.mnemonics.join(' ')));

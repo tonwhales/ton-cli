@@ -19,14 +19,6 @@ export async function openKeystore() {
     }]);
 
     const store = await KeyStore.load(fs.readFileSync(res.keystore));
-    // let p = await prompt<{ password: string }>([{
-    //     type: 'password',
-    //     name: 'password',
-    //     message: 'Keystore password',
-    //     validate: async (src) => {
-    //         return await store.checkPassword(src);
-    //     }
-    // }]);
-    // let password = p.password;
+
     return { store, name: res.keystore };
 }

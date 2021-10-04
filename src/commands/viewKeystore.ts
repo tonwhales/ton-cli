@@ -12,6 +12,7 @@ import { openContacts } from "./utils/openContacts";
 import { askConfirm } from "./utils/askConfirm";
 import { askText } from "./utils/askText";
 import { exportKey } from "./utils/exportKey";
+import { createGenericWalletSource, restoreWalletSource } from "./storage/walletSources";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -183,19 +184,19 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
         validate: (src) => mnemonicValidate(src.split(' '))
     }]);
 
-    // Import key
+    // Resolve contract
     const workchain = parseInt(res.workchain, 10);
     let key = await mnemonicToWalletKey(res.mnemonics.split(' '));
-    let kind = validateWalletType(res.kind);
-    if (!kind) {
-        throw Error('Invalid kind');
-    }
-    let wallet = await client.openWalletFromSecretKey({ workchain, secretKey: key.secretKey, type: kind });
+    let source = createGenericWalletSource(res.kind, workchain, key.publicKey);
+    let wallet = await client.openWalletFromCustomContract(source);
+    let config = source.backup();
+
+    // Persist contract
     await store.store.addKey({
         name: res.name,
         address: wallet.address,
-        kind: kind,
-        config: '',
+        kind: source.type,
+        config: config,
         comment: '',
         publicKey: key.publicKey
     }, Buffer.from(res.mnemonics));
@@ -204,7 +205,7 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
 
 async function transfer(client: TonClient, store: { store: KeyStore, name: string }) {
 
-    // Checl contacts
+    // Check contacts
     let contacts = await openContacts();
     if (contacts.length === 0) {
         console.warn('contacts.json is empty or does not exist');
@@ -245,19 +246,17 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
     const spinner = ora('Loading key').start();
     let target = contacts.find((v) => v.name === res.send_to)!.address;
     let source = store.store.allKeys.find((v) => v.name === res.send_from)!;
-    let sourceAddress = source.address;
     let mnemonics = (await store.store.getSecret(res.send_from, password)).toString().split(' ');
     if (!(await mnemonicValidate(mnemonics))) {
         throw Error('Mnemonics are invalid');
     }
     let key = await mnemonicToWalletKey(mnemonics);
-    let wallet = await client.openWalletFromAddress({ source: sourceAddress });
-    let kind = validateWalletType(source.kind);
-    if (!kind) {
-        throw Error('Invalid wallet kind');
-    }
-    await wallet.prepare(sourceAddress.workChain, key.publicKey, kind);
 
+    // Create wallet
+    let contractSource = restoreWalletSource(source.kind, source.address, source.publicKey, source.config);
+    let wallet = await client.openWalletFromCustomContract(contractSource);
+
+    // Transferring
     spinner.text = 'Preparing transfer';
     let seqno = await backoff(() => wallet.getSeqNo());
     let deployed = await backoff(() => client.isContractDeployed(target));
@@ -304,7 +303,7 @@ async function exportWalletForTon(client: TonClient, store: KeyStore) {
         initial: 'wallet_0001',
         validate: (src) => {
             if (src.trim().length === 0) {
-                return 'Name couldn\'t be empty'
+                return 'Name couldn\'t be empty';
             } else {
                 return true;
             }
