@@ -2678,13 +2678,13 @@ ton-compiler@0.6.1:
     arg "^5.0.1"
     tmp "^0.2.1"
 
-ton-contracts@1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/ton-contracts/-/ton-contracts-1.1.0.tgz#4d0a8a084798a8075f273f794962c4c6aadf2786"
-  integrity sha512-UYMfySOyRmuF+BzHTs2y6kiu/DgNme/vxVgz3+fmrWA1ktn5sB0xQj3KX7NKr5kqVLHQOk/AG45Ywbx8+NI63Q==
+ton-contracts@1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/ton-contracts/-/ton-contracts-1.1.1.tgz#6613f682ce6f5dfc473b2dddf9f2d243e9046378"
+  integrity sha512-6E4uFulW4TxWn3HKt7d3A4OME53HMPXw0ewLOAeJiUzUoOF7UpR4932Z9+hJdOvtC+KiooH3SRJAu7lH77gYdA==
   dependencies:
     "@openland/patterns" "^0.0.2"
-    ton "4.8.0"
+    ton "4.8.1"
     ton-compiler "0.6.1"
     ton-crypto "1.4.7"
 
@@ -2696,10 +2696,10 @@ ton-crypto@1.4.7:
     jssha "3.2.0"
     tweetnacl "1.0.3"
 
-ton@4.8.0:
-  version "4.8.0"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-4.8.0.tgz#65e41ab7b438fe71af7ca3e940c5a702afadf5ae"
-  integrity sha512-IEmAuaUt46UUj/pD0fnbiUc4yv9OO4HAF6OInnIQhImeoLIMlkfaD7WCPp8Rk8DGkHd/L01sq3cGRn59Xdl1Ug==
+ton@4.8.1:
+  version "4.8.1"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-4.8.1.tgz#15a924bdf61f88f677f02d7a88bf383184c5ff5e"
+  integrity sha512-Cvquyw5HdWEqREmROG9RL4pyfdVdTfDVB3Z1GNiN5vvjuWGfx5/jGETse85/Go360Mmx2b6bdNpBOH5kLtpIJw==
   dependencies:
     bn.js "5.2.0"
     ethjs-unit "0.1.6"

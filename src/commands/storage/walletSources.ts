@@ -1,6 +1,5 @@
 import {
     Address,
-    WalletSource,
     WalletV1R1Source,
     WalletV1R2Source,
     WalletV1R3Source,

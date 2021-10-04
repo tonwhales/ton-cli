@@ -1,8 +1,8 @@
-import { Address, fromNano, KeyStore, toNano, TonClient, validateWalletType } from "ton";
+import { fromNano, KeyStore, toNano, TonClient, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
-import { mnemonicToWalletKey, mnemonicValidate } from "ton-crypto";
+import { mnemonicNew, mnemonicToWalletKey, mnemonicValidate } from "ton-crypto";
 import fs from 'fs';
 import Table from 'cli-table';
 import ora from "ora";
@@ -76,7 +76,7 @@ async function listBalances(client: TonClient, store: KeyStore) {
 
 async function newKeys(client: TonClient, store: { store: KeyStore, name: string }) {
 
-    let res = await prompt<{ workchain: string, kind: string, count: '1' | '10' | '100' | '300', prefix: string }>([{
+    let res = await prompt<{ workchain: string, kind: string }>([{
         type: 'select',
         name: 'workchain',
         message: 'Target workchain',
@@ -95,9 +95,69 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             { message: 'Wallet v2r2', name: 'org.ton.wallets.v2.r2' },
             { message: 'Wallet v1', name: 'org.ton.wallets.simple', hint: 'unsupported' },
             { message: 'Wallet v1r2', name: 'org.ton.wallets.simple.r2' },
-            { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' }
+            { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' },
+            { message: 'Restricted (Whitelisted)', name: 'org.ton.wallets.whitelisted', hint: 'restricted wallet' }
         ]
-    }, {
+    }]);
+
+    // Resolve workchain
+    let workchain = parseInt(res.workchain, 10);
+
+    // Custom wallets
+    if (res.kind === 'org.ton.wallets.whitelisted') {
+
+        // Creaste keys
+        const spinner = ora('Creating keys').start();
+        const masterMnemonics = await mnemonicNew();
+        const masterKey = await mnemonicToWalletKey(masterMnemonics);
+        const restrictedMnemonics = await mnemonicNew();
+        const restrictedKey = await mnemonicToWalletKey(restrictedMnemonics);
+        spinner.stop();
+
+        // Ask for whitelisted address
+        const whitelistedAddress = await askAddress({ message: 'Whitelisted address' });
+        const source = WhitelistedWalletSource.create({
+            workchain,
+            masterKey: masterKey.publicKey,
+            restrictedKey: restrictedKey.publicKey,
+            whitelistedAddress: whitelistedAddress
+        });
+        const address = await contractAddress(source);
+        const config = source.backup();
+
+        // Ask for name
+        const basicName = await askKeyName('Key Name', { store: store.store, suffixes: ['_restricted', '_master'] });
+
+        await store.store.addKey({
+            name: basicName + '_restricted',
+            address: address,
+            kind: source.type,
+            config: config,
+            comment: '',
+            publicKey: restrictedKey.publicKey
+        }, Buffer.from(restrictedMnemonics.join(' ')));
+        await store.store.addKey({
+            name: basicName + '_master',
+            address: address,
+            kind: source.type,
+            config: config,
+            comment: '',
+            publicKey: masterKey.publicKey
+        }, Buffer.from(masterMnemonics.join(' ')));
+
+        // Write to disk
+        fs.writeFileSync(store.name, await store.store.save());
+
+        return;
+    }
+
+
+    // Generic wallet
+    let kind = validateWalletType(res.kind);
+    if (!kind) {
+        throw Error('Invalid kind');
+    }
+    let config = await prompt<{ count: '1' | '10' | '100' | '300', prefix: string }>([{
         type: 'select',
         name: 'count',
         message: 'How many keys you want to create?',
@@ -119,21 +179,16 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             return true;
         }
     }]);
-    let kind = validateWalletType(res.kind);
-    if (!kind) {
-        throw Error('Invalid kind');
-    }
 
     // Create keys
     const spinner = ora('Creating keys').start();
-    let count = parseInt(res.count, 10);
-    let workchain = parseInt(res.workchain, 10);
+    let count = parseInt(config.count, 10);
     let index = 1;
     for (let i = 0; i < count; i++) {
-        while (store.store.allKeys.find((v) => v.name === res.prefix + '_' + String(index).padStart(4, '0'))) {
+        while (store.store.allKeys.find((v) => v.name === config.prefix + '_' + String(index).padStart(4, '0'))) {
             index++;
         }
-        let keyname = res.prefix + '_' + String(index).padStart(4, '0');
+        let keyname = config.prefix + '_' + String(index).padStart(4, '0');
         spinner.text = 'Creating key ' + keyname;
         let wallet = await client.createNewWallet({ workchain: workchain, type: kind });
         await store.store.addKey({
@@ -149,7 +204,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
     spinner.succeed('Keys created');
 }
 
-async function importKeys(client: TonClient, store: { store: KeyStore, name: string }) {
+async function importKeys(store: { store: KeyStore, name: string }) {
 
     let res = await prompt<{ kind: string, workchain: string }>([{
         type: 'select',
@@ -198,21 +253,18 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
         let address = await contractAddress(source);
         let config = source.backup();
 
-        // Persist restricted key
-        const restrictedName = await askKeyName('Restricted key name', store.store);
+        // Persist keys
+        const basicName = await askKeyName('Key Name', { store: store.store, suffixes: ['_restricted', '_master'] });
         await store.store.addKey({
-            name: restrictedName,
+            name: basicName + '_restricted',
             address: address,
             kind: source.type,
             config: config,
             comment: '',
             publicKey: restrictedKey.publicKey
         }, Buffer.from(restrictedMnemonics.join(' ')));
-
-        // Persist master key
-        const masterName = await askKeyName('Master key name', store.store);
         await store.store.addKey({
-            name: masterName,
+            name: basicName + '_master',
             address: address,
             kind: source.type,
             config: config,
@@ -227,7 +279,7 @@ async function importKeys(client: TonClient, store: { store: KeyStore, name: str
     }
 
     // Generic contract
-    const name = await askKeyName('Key name', store.store);
+    const name = await askKeyName('Key name', { store: store.store });
     const mnemonics = await askMnemonics('Key mnemonics');
     let key = await mnemonicToWalletKey(mnemonics);
     let source = createGenericWalletSource(res.kind, workchain, key.publicKey);
@@ -396,7 +448,7 @@ export async function viewKeystore(config: Config) {
         }]);
 
         if (res.command === 'import-keys') {
-            await importKeys(client, { store: store.store, name: store.name });
+            await importKeys({ store: store.store, name: store.name });
         }
         if (res.command === 'list-keys') {
             if (config.offline) {

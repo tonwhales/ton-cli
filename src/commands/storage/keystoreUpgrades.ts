@@ -1,7 +1,5 @@
-import { string } from 'fp-ts';
 import fs from 'fs';
 import { KeyStore } from "ton";
-import { askPassword } from '../utils/askPassword';
 import { restoreWalletSource } from './walletSources';
 
 export async function needUpgrade(store: KeyStore) {
