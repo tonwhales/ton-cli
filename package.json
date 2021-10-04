@@ -39,9 +39,9 @@
     "io-ts": "^2.2.16",
     "ora": "5.4.1",
     "prompt": "^1.2.0",
-    "ton": "4.8.1",
-    "ton-contracts": "1.1.1",
-    "ton-crypto": "1.4.7",
+    "ton": "4.8.2",
+    "ton-contracts": "1.3.0",
+    "ton-crypto": "1.5.1",
     "yargs": "^17.1.1"
   }
 }

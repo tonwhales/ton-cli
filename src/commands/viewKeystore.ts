@@ -18,6 +18,7 @@ import { WhitelistedWalletSource } from "ton-contracts";
 import { contractAddress } from "ton/dist/contracts/sources/ContractSource";
 import { askAddress } from "./utils/askAddress";
 import { askKeyName } from "./utils/askKeyName";
+import { askConfirmDanger } from "./utils/askConfirmDanger";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -61,13 +62,20 @@ async function backupKeys(store: { store: KeyStore, name: string }) {
 
 async function listBalances(client: TonClient, store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'WC', 'Address', 'Balance', 'Kind'], colWidths: [24, 4, 56, 16, 32]
+        head: ['Name', 'WC', 'Address', 'Balance', 'Kind', 'Status'], colWidths: [24, 4, 56, 16, 32, 24]
     });
     const spinner = ora('Fetching balances...').start();
     for (let key of store.allKeys) {
         spinner.text = 'Fetching balance ' + key.name;
         let balance = await backoff(() => client.getBalance(key.address));
-        table.push([key.name, key.address.workChain + '', key.address.toFriendly(), fromNano(balance), key.kind]);
+        let state: string = (await client.getContractState(key.address)).state;
+        if (key.kind === 'org.ton.wallets.whitelisted' && state === 'active') {
+            let cooldown = parseInt((await client.callGetMethod(key.address, 'restricted_cooldown')).stack[0][1], 16);
+            if (cooldown > 0) {
+                state = 'cooldown ' + cooldown + ' s';
+            }
+        }
+        table.push([key.name, key.address.workChain + '', key.address.toFriendly(), fromNano(balance), key.kind, state]);
     }
     spinner.succeed();
     console.log(table.toString());
@@ -298,6 +306,27 @@ async function importKeys(store: { store: KeyStore, name: string }) {
     fs.writeFileSync(store.name, await store.store.save());
 }
 
+async function deleteKey(store: { store: KeyStore, name: string }) {
+    let res = await prompt<{ wallet: string }>([{
+        type: 'select',
+        name: 'wallet',
+        message: 'Wallet to delete',
+        initial: 0,
+        choices: store.store.allKeys.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }]);
+
+    if (!(await askConfirmDanger('Are you sure want to delete key ' + res.wallet + '? Type wallet name to proceed', res.wallet))) {
+        return;
+    }
+
+    store.store.removeKey(res.wallet);
+    fs.writeFileSync(store.name, await store.store.save());
+}
+
 async function transfer(client: TonClient, store: { store: KeyStore, name: string }) {
 
     // Check contacts
@@ -440,6 +469,7 @@ export async function viewKeystore(config: Config) {
                 { message: 'List wallets', name: 'list-keys' },
                 { message: 'Transfer', name: 'transfer' },
                 { message: 'Create wallets', name: 'create-keys' },
+                { message: 'Delete wallet', name: 'delete-key' },
                 { message: 'Export wallet for TON Node', name: 'export-wallet' },
                 { message: 'Import wallets', name: 'import-keys' },
                 { message: 'Backup wallets', name: 'backup-keys' },
@@ -447,6 +477,9 @@ export async function viewKeystore(config: Config) {
             ]
         }]);
 
+        if (res.command === 'delete-key') {
+            await deleteKey({ store: store.store, name: store.name });
+        }
         if (res.command === 'import-keys') {
             await importKeys({ store: store.store, name: store.name });
         }
