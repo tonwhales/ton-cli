@@ -2,7 +2,7 @@ import { Config } from '../Config';
 import fs from 'fs';
 import ora from 'ora';
 import { prompt } from 'enquirer';
-import { mnemonicNew, mnemonicToWalletKey } from 'ton-crypto';
+import { mnemonicToWalletKey, newSecurePassphrase } from 'ton-crypto';
 import { Address, KeyStore, TonClient } from 'ton';
 import * as t from 'io-ts';
 import { isRight } from 'fp-ts/lib/Either';
@@ -49,10 +49,10 @@ export async function restoreKeystore(config: Config) {
         const spinner = ora('Creating a secure keystore').start();
 
         // Create password
-        const mnemonics = await mnemonicNew(24);
+        const passphrase = await newSecurePassphrase(6);
 
         // Create keystore
-        let keystore = await KeyStore.createNew(mnemonics.join(' '));
+        let keystore = await KeyStore.createNew(passphrase);
 
         // Importing
         const client = new TonClient({ endpoint: '' });
@@ -89,7 +89,7 @@ export async function restoreKeystore(config: Config) {
         fs.writeFileSync(res.name + '.keystore', await keystore.save());
 
         // Complete
-        spinner.succeed('Keystore password: ' + mnemonics.join(' '));
+        spinner.succeed('Keystore password: ' + passphrase);
 
     } else {
         console.warn('Invalid backup file')

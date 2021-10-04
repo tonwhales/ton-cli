@@ -1,7 +1,7 @@
 import { prompt } from 'enquirer';
 import fs from 'fs';
 import { KeyStore } from 'ton';
-import { mnemonicNew } from 'ton-crypto';
+import { newSecurePassphrase } from 'ton-crypto';
 import ora from 'ora';
 import { Config } from '../Config';
 
@@ -21,14 +21,14 @@ export async function newKeystore(config: Config) {
     const spinner = ora('Creating a secure keystore').start();
 
     // Create password
-    const mnemonics = await mnemonicNew(24);
+    const passphrase = await newSecurePassphrase(6);
 
     // Create keystore
-    let keystore = await KeyStore.createNew(mnemonics.join(' '));
+    let keystore = await KeyStore.createNew(passphrase);
 
     // Save keystore
     fs.writeFileSync(res.name + '.keystore', await keystore.save());
 
     // Complete
-    spinner.succeed('Keystore password: ' + mnemonics.join(' '));
+    spinner.succeed('Keystore password: ' + passphrase);
 }
