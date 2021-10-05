@@ -1,6 +1,13 @@
-import { number } from "fp-ts";
 
-const styles = `
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TON Paper Backup</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="description" content="TON Paper Backup">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+<style>
+
 body { margin: 0; }
 html { line-height: 1.15; /* 1 */ -webkit-text-size-adjust: 100%; /* 2 */ }
 a { background-color: transparent; }
@@ -133,134 +140,159 @@ a { background-color: transparent; }
     display: flex;
     width: 205px;
 }
-`;
 
-const baseTemplate = `
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>TON Paper Backup</title>
-<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-<meta name="description" content="TON Paper Backup">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<style>
-{{style}}
 </style>
 <body>
 <div style="display: table; width: 350px; padding: 16px;">
-{{body}}
-</div>
-</body>
-`;
 
-function renderItem(index: number | null, src: { name: string, address: string, comment: string, config: string, description: string, kind: string, mnemonics: string[] }) {
-    return `
         <div class="index_item">
-            ${index !== null ? `<span class="index_counter">${index}</span>` : ''}
+            
             <div class="index_inner">
                 <span class="index_name">
-                    ${src.name}
+                    whitelisted_master
                 </span>
                 <span class="index_address">
-                    ${src.address}
+                    EQBGf1-oq7DXIYl0YOvV7fWiHPQ73MuSPQRmiDVwiSeuB6xE
                 </span>
                 <span class="index_kind">
-                    ${src.description}
+                    Whitelisted Restricted Wallet. Address: EQDR4neQzqkfEz0oR3hXBcJph64d5NddP8H8wfN0thQIAqDH, Master Key: 423a588257a3a2654363e78b2ce5a050c104b904563ad77a156f5939eed1d9e2, Default Key: d383c8a5b9236f7b815e9e560ff09576c91b9da1bb50996fb529d0a0a6546c64
                 </span>
             </div>
         </div>
-    `;
-}
+    
+<div class="cut_here"></div>
 
-function renderKeyBlock(index: number | null, offset: number, mnemonics: string[], name: string, address: string) {
-    return `
+        <div class="key_item">
+        
         <div class="key_block">
         <span class="key_block_mn">
-            ${(offset + 1) + '. ' + mnemonics[0]}
+            1. brown
         </span>
         <span class="key_block_mn">
-        ${(offset + 2) + '. ' + mnemonics[1]}
+        2. balcony
         </span>
         <span class="key_block_mn">
-        ${(offset + 3) + '. ' + mnemonics[2]}
+        3. bright
         </span>
         <span class="key_block_mn">
-        ${(offset + 4) + '. ' + mnemonics[3]}
+        4. vault
         </span>
         <span class="key_block_mn">
-        ${(offset + 5) + '. ' + mnemonics[4]}
+        5. about
         </span>
         <span class="key_block_mn">
-        ${(offset + 6) + '. ' + mnemonics[5]}
+        6. board
         </span>
         <span class="key_block_mn">
-        ${(offset + 7) + '. ' + mnemonics[6]}
+        7. cheese
         </span>
         <span class="key_block_mn">
-        ${(offset + 8) + '. ' + mnemonics[7]}
+        8. flag
         </span>
         <div class="key_block_id">
         <span class="key_block_id_d">
-        ${index !== null ? index : ''}
+        
         </span>
         </div>
         <div class="key_addr">
         <span class="key_addr_d">
-        ${address}
+        EQBGf1-oq7DXIYl0YOvV7fWiHPQ73MuSPQRmiDVwiSeuB6xE
         </span>
         </div>
         <div class="key_name">
         <span class="key_name_d">
-        ${name}
+        whitelisted_master
         </span>
         </div>
         </div>
-    `;
-}
-
-function renderKeys(index: number | null, mnemonics: string[], name: string, address: string) {
-    return `
-        <div class="key_item">
-        ${renderKeyBlock(index, 0, mnemonics.slice(0, 8), name, address)}
-        ${renderKeyBlock(index, 8, mnemonics.slice(8, 16), name, address)}
-        ${renderKeyBlock(index, 16, mnemonics.slice(16), name, address)}
+    
+        
+        <div class="key_block">
+        <span class="key_block_mn">
+            9. jump
+        </span>
+        <span class="key_block_mn">
+        10. blast
+        </span>
+        <span class="key_block_mn">
+        11. culture
+        </span>
+        <span class="key_block_mn">
+        12. inner
+        </span>
+        <span class="key_block_mn">
+        13. enjoy
+        </span>
+        <span class="key_block_mn">
+        14. lift
+        </span>
+        <span class="key_block_mn">
+        15. gather
+        </span>
+        <span class="key_block_mn">
+        16. wish
+        </span>
+        <div class="key_block_id">
+        <span class="key_block_id_d">
+        
+        </span>
         </div>
-    `;
-}
-
-export function backupSingleTemplate(src: { name: string, address: string, comment: string, config: string, description: string, kind: string, mnemonics: string[] }) {
-    let rendered: string[] = [];
-    rendered.push(renderItem(null, src));
-    rendered.push('<div class="cut_here"></div>');
-    rendered.push(renderKeys(null, src.mnemonics, src.name, src.address));
-    let res = baseTemplate;
-    res = res.replace('{{body}}', rendered.join('\n'));
-    res = res.replace('{{style}}', styles);
-    return res;
-}
-
-export function backupTemplate(src: { name: string, address: string, comment: string, config: string, description: string, kind: string, mnemonics: string[] }[]) {
-
-
-    let rendered: string[] = [];
-
-    // Render index
-    let index = 0;
-    for (let s of src) {
-        rendered.push(renderItem(++index, s));
-    }
-
-    // Page break
-    rendered.push('<div class="cut_here"></div>');
-
-    // Render keys
-    index = 0;
-    for (let s of src) {
-        rendered.push(renderKeys(++index, s.mnemonics, s.name, s.address));
-    }
-
-    let res = baseTemplate;
-    res = res.replace('{{body}}', rendered.join('\n'));
-    res = res.replace('{{style}}', styles);
-    return res;
-}
+        <div class="key_addr">
+        <span class="key_addr_d">
+        EQBGf1-oq7DXIYl0YOvV7fWiHPQ73MuSPQRmiDVwiSeuB6xE
+        </span>
+        </div>
+        <div class="key_name">
+        <span class="key_name_d">
+        whitelisted_master
+        </span>
+        </div>
+        </div>
+    
+        
+        <div class="key_block">
+        <span class="key_block_mn">
+            17. tattoo
+        </span>
+        <span class="key_block_mn">
+        18. entry
+        </span>
+        <span class="key_block_mn">
+        19. board
+        </span>
+        <span class="key_block_mn">
+        20. wild
+        </span>
+        <span class="key_block_mn">
+        21. garment
+        </span>
+        <span class="key_block_mn">
+        22. pretty
+        </span>
+        <span class="key_block_mn">
+        23. gaze
+        </span>
+        <span class="key_block_mn">
+        24. program
+        </span>
+        <div class="key_block_id">
+        <span class="key_block_id_d">
+        
+        </span>
+        </div>
+        <div class="key_addr">
+        <span class="key_addr_d">
+        EQBGf1-oq7DXIYl0YOvV7fWiHPQ73MuSPQRmiDVwiSeuB6xE
+        </span>
+        </div>
+        <div class="key_name">
+        <span class="key_name_d">
+        whitelisted_master
+        </span>
+        </div>
+        </div>
+    
+        </div>
+    
+</div>
+</body>

@@ -19,7 +19,7 @@ import { contractAddress } from "ton/dist/contracts/sources/ContractSource";
 import { askAddress } from "./utils/askAddress";
 import { askKeyName } from "./utils/askKeyName";
 import { askConfirmDanger } from "./utils/askConfirmDanger";
-import { backupTemplate } from "./backup/backupTemplate";
+import { backupSingleTemplate, backupTemplate } from "./backup/backupTemplate";
 
 async function listKeys(store: KeyStore) {
     var table = new Table({
@@ -97,6 +97,55 @@ async function backupPaper(store: { store: KeyStore, name: string }) {
     fs.writeFileSync(destName + '.html', data);
     spinner.succeed();
 }
+
+async function backupPaperSingle(store: { store: KeyStore, name: string }) {
+
+    // Confirm
+    if (!(await askConfirm('Backup stores keys in UNENCRYPTED FORM. Are you sure want to export unencrypted keys to disk?'))) {
+        return;
+    }
+
+    // Ask for wallet
+    let wallet = (await prompt<{ wallet: string }>([{
+        type: 'select',
+        name: 'wallet',
+        message: 'Wallet to backup',
+        initial: 0,
+        choices: store.store.allKeys.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }])).wallet;
+
+    // Ask for password
+    const password = await askPassword(store.store);
+
+    // Ask for name
+    let destName = await askText({ message: 'Backup name', initial: wallet });
+
+    // Backup
+    const spinner = ora('Exporting key...').start();
+
+    // Resolve key
+    const key = store.store.allKeys.find((v) => v.name === wallet)!;
+    let mnemonics = (await store.store.getSecret(key.name, password)).toString().split(' ');
+    if (!(await mnemonicValidate(mnemonics))) {
+        throw Error('Mnemonics are invalid');
+    }
+
+    // Resolve description
+    let contractSource = restoreWalletSource(key.kind, key.address, key.publicKey, key.config);
+    let description = contractSource.describe();
+
+    // Backup
+    let data = backupSingleTemplate({ name: key.name, comment: key.comment, config: key.config, kind: key.kind, description: description, address: key.address.toFriendly(), mnemonics });
+    fs.writeFileSync(destName + '.html', data);
+
+    // Complete
+    spinner.succeed();
+}
+
 
 async function listBalances(client: TonClient, store: KeyStore) {
     var table = new Table({
@@ -511,7 +560,8 @@ export async function viewKeystore(config: Config) {
                 { message: 'Import wallet', name: 'import-keys' },
                 { message: 'Export wallet for TON Node', name: 'export-wallet' },
                 { message: 'Backup wallets', name: 'backup-keys' },
-                { message: 'Backup paper wallets', name: 'backup-paper-keys' },
+                { message: 'Paper backup keystore', name: 'backup-paper-keys' },
+                { message: 'Paper backup wallet', name: 'backup-paper-wallet' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
@@ -540,6 +590,9 @@ export async function viewKeystore(config: Config) {
         }
         if (res.command === 'backup-paper-keys') {
             await backupPaper({ store: store.store, name: store.name });
+        }
+        if (res.command === 'backup-paper-wallet') {
+            await backupPaperSingle({ store: store.store, name: store.name });
         }
         if (res.command === 'export-wallet') {
             await exportWalletForTon(client, store.store);
