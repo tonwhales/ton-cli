@@ -146,6 +146,47 @@ async function backupPaperSingle(store: { store: KeyStore, name: string }) {
     spinner.succeed();
 }
 
+async function revealSingle(store: { store: KeyStore, name: string }) {
+
+    // Confirm
+    if (!(await askConfirm('This operation whould show secret key in UNENCRYPTED FORM. Are you sure want to display secret key?'))) {
+        return;
+    }
+
+    // Ask for wallet
+    let wallet = (await prompt<{ wallet: string }>([{
+        type: 'select',
+        name: 'wallet',
+        message: 'Wallet to reveal',
+        initial: 0,
+        choices: store.store.allKeys.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }])).wallet;
+
+    // Ask for password
+    const password = await askPassword(store.store);
+    let spinner = ora('Loading key...').start();
+    const key = store.store.allKeys.find((v) => v.name === wallet)!;
+    let mnemonics = (await store.store.getSecret(key.name, password)).toString().split(' ');
+    if (!(await mnemonicValidate(mnemonics))) {
+        throw Error('Mnemonics are invalid');
+    }
+    spinner.stop();
+
+    // Print
+    var table = new Table({
+        colWidths: [24, 24, 24]
+    });
+    for (let i = 0; i < 8; i++) {
+        table.push([(i + 1) + '. ' + mnemonics[i], (i + 9) + '. ' + mnemonics[i + 8], (i + 17) + '. ' + mnemonics[i + 16]]);
+    }
+    console.log(table.toString());
+    console.log('\n');
+}
+
 
 async function listBalances(client: TonClient, store: KeyStore) {
     var table = new Table({
@@ -562,6 +603,7 @@ export async function viewKeystore(config: Config) {
                 { message: 'Backup wallets', name: 'backup-keys' },
                 { message: 'Paper backup keystore', name: 'backup-paper-keys' },
                 { message: 'Paper backup wallet', name: 'backup-paper-wallet' },
+                { message: 'Reveal wallet key', name: 'reveal-wallet' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
@@ -593,6 +635,9 @@ export async function viewKeystore(config: Config) {
         }
         if (res.command === 'backup-paper-wallet') {
             await backupPaperSingle({ store: store.store, name: store.name });
+        }
+        if (res.command === 'reveal-wallet') {
+            await revealSingle({ store: store.store, name: store.name });
         }
         if (res.command === 'export-wallet') {
             await exportWalletForTon(client, store.store);
