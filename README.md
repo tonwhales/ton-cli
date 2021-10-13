@@ -30,6 +30,12 @@ You can use flag --test to run client on test net instead of production.
   Restore keystore
 ```
 
+## Offline mode
+
+`ton-cli` supports offline mode that could be enabled via:
+* `--offline` argument
+* `TON_CLI_OFFLINE=true` environment variable
+
 ## Performing transfers
 When you have working keystore you have to write out contacts.json file in the same directory to be able to perform transfers in the form:
 

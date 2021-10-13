@@ -6,22 +6,35 @@ import yargs from 'yargs';
 import { Config } from './Config';
 import { restoreKeystore } from './commands/restoreKeystore';
 import { sendFile } from './commands/sendFile';
+import { TonClient } from 'ton';
 
 (async () => {
     try {
 
+        // Resolve config
         let parsed = await yargs
             .scriptName("ton-cli")
             .usage('$0 ton-cli [args]')
             .boolean('test')
             .boolean('offline')
             .parseAsync();
-
-        const config: Config = {
-            test: parsed.test ? true : false,
-            offline: parsed.offline ? true : false
+        let testnet = parsed.test ? true : false;
+        let offline = parsed.offline ? true : false;
+        if (process.env.TON_CLI_OFFLINE === 'true') {
+            offline = true;
         }
-        if (config.test) {
+        let client = offline
+            ? new TonClient({ endpoint: '' })
+            : new TonClient({ endpoint: testnet ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://toncenter.com/api/v2/jsonRPC' });
+        const config: Config = {
+            testnet: testnet,
+            offline,
+            client
+        }
+        if (config.offline) {
+            console.warn('Running in OFFLINE mode');
+        }
+        if (config.testnet) {
             console.warn('Running in TEST mode');
         }
 

@@ -2,12 +2,15 @@ import { Config } from "../Config";
 import fs from 'fs';
 import ora from 'ora';
 import { prompt } from 'enquirer';
-import { TonClient } from "ton";
 import { backoff } from "@openland/patterns";
 
 export async function sendFile(config: Config) {
     let dir = fs.readdirSync('.');
     let files = dir.filter((v) => v.endsWith('.boc'));
+    if (config.offline) {
+        ora().fail('Unable to send files in offline mode');
+        return;
+    }
     if (files.length === 0) {
         ora().fail('No *.boc files found in current directory.');
         return;
@@ -29,14 +32,13 @@ export async function sendFile(config: Config) {
 
     // Send file
     const spinner = ora('Sending file...').start();
-    const client = new TonClient({ endpoint: config.test ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://toncenter.com/api/v2/jsonRPC' });
     let iteration = 0;
     backoff(async () => {
         iteration++;
         if (iteration > 1) {
             spinner.text = 'Sending file... (attempt ' + iteration + ')';
         }
-        await client.sendFile(data);
+        await config.client.sendFile(data);
     });
     spinner.succeed('File send');
 }

@@ -1,4 +1,4 @@
-import { fromNano, KeyStore, toNano, TonClient, validateWalletType } from "ton";
+import { fromNano, KeyStore, toNano, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -20,8 +20,11 @@ import { askAddress } from "./utils/askAddress";
 import { askKeyName } from "./utils/askKeyName";
 import { askConfirmDanger } from "./utils/askConfirmDanger";
 import { backupSingleTemplate, backupTemplate } from "./backup/backupTemplate";
+import { askSeqno } from "./utils/askSeqno";
+import { askBounce } from "./utils/askBounce";
+import qr from 'qrcode-terminal';
 
-async function listKeys(store: KeyStore) {
+async function listKeys(config: Config, store: KeyStore) {
     var table = new Table({
         head: ['Name', 'WC', 'Address', 'Kind'], colWidths: [24, 4, 56, 32]
     });
@@ -32,7 +35,7 @@ async function listKeys(store: KeyStore) {
     console.log('\n');
 }
 
-async function backupKeys(store: { store: KeyStore, name: string }) {
+async function backupKeys(config: Config, store: { store: KeyStore, name: string }) {
 
     // Confirm
     if (!(await askConfirm('Backup stores keys in UNENCRYPTED FORM. Are you sure want to export unencrypted keys to disk?'))) {
@@ -61,7 +64,7 @@ async function backupKeys(store: { store: KeyStore, name: string }) {
     spinner.succeed();
 }
 
-async function backupPaper(store: { store: KeyStore, name: string }) {
+async function backupPaper(config: Config, store: { store: KeyStore, name: string }) {
 
     // Confirm
     if (!(await askConfirm('Backup stores keys in UNENCRYPTED FORM. Are you sure want to export unencrypted keys to disk?'))) {
@@ -98,7 +101,7 @@ async function backupPaper(store: { store: KeyStore, name: string }) {
     spinner.succeed();
 }
 
-async function backupPaperSingle(store: { store: KeyStore, name: string }) {
+async function backupPaperSingle(config: Config, store: { store: KeyStore, name: string }) {
 
     // Confirm
     if (!(await askConfirm('Backup stores keys in UNENCRYPTED FORM. Are you sure want to export unencrypted keys to disk?'))) {
@@ -146,7 +149,7 @@ async function backupPaperSingle(store: { store: KeyStore, name: string }) {
     spinner.succeed();
 }
 
-async function revealSingle(store: { store: KeyStore, name: string }) {
+async function revealSingle(config: Config, store: { store: KeyStore, name: string }) {
 
     // Confirm
     if (!(await askConfirm('This operation whould show secret key in UNENCRYPTED FORM. Are you sure want to display secret key?'))) {
@@ -188,17 +191,17 @@ async function revealSingle(store: { store: KeyStore, name: string }) {
 }
 
 
-async function listBalances(client: TonClient, store: KeyStore) {
+async function listBalances(config: Config, store: KeyStore) {
     var table = new Table({
         head: ['Name', 'WC', 'Address', 'Balance', 'Kind', 'Status'], colWidths: [24, 4, 56, 16, 32, 24]
     });
     const spinner = ora('Fetching balances...').start();
     for (let key of store.allKeys) {
         spinner.text = 'Fetching balance ' + key.name;
-        let balance = await backoff(() => client.getBalance(key.address));
-        let state: string = (await client.getContractState(key.address)).state;
+        let balance = await backoff(() => config.client.getBalance(key.address));
+        let state: string = (await config.client.getContractState(key.address)).state;
         if (key.kind === 'org.ton.wallets.whitelisted' && state === 'active') {
-            let cooldown = parseInt((await client.callGetMethod(key.address, 'restricted_cooldown')).stack[0][1], 16);
+            let cooldown = parseInt((await config.client.callGetMethod(key.address, 'restricted_cooldown')).stack[0][1], 16);
             if (cooldown > 0) {
                 state = 'cooldown ' + cooldown + ' s';
             }
@@ -210,7 +213,7 @@ async function listBalances(client: TonClient, store: KeyStore) {
     console.log('\n');
 }
 
-async function newKeys(client: TonClient, store: { store: KeyStore, name: string }) {
+async function newKeys(config: Config, store: { store: KeyStore, name: string }) {
 
     let res = await prompt<{ workchain: string, kind: string }>([{
         type: 'select',
@@ -259,7 +262,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             whitelistedAddress: whitelistedAddress
         });
         const address = await contractAddress(source);
-        const config = source.backup();
+        const sourceConfig = source.backup();
 
         // Ask for name
         const basicName = await askKeyName('Key Name', { store: store.store, suffixes: ['_restricted', '_master'] });
@@ -268,7 +271,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             name: basicName + '_restricted',
             address: address,
             kind: source.type,
-            config: config,
+            config: sourceConfig,
             comment: '',
             publicKey: restrictedKey.publicKey
         }, Buffer.from(restrictedMnemonics.join(' ')));
@@ -276,7 +279,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
             name: basicName + '_master',
             address: address,
             kind: source.type,
-            config: config,
+            config: sourceConfig,
             comment: '',
             publicKey: masterKey.publicKey
         }, Buffer.from(masterMnemonics.join(' ')));
@@ -293,7 +296,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
     if (!kind) {
         throw Error('Invalid kind');
     }
-    let config = await prompt<{ count: '1' | '10' | '100' | '300', prefix: string }>([{
+    let genericConfig = await prompt<{ count: '1' | '10' | '100' | '300', prefix: string }>([{
         type: 'select',
         name: 'count',
         message: 'How many keys you want to create?',
@@ -318,15 +321,15 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
 
     // Create keys
     const spinner = ora('Creating keys').start();
-    let count = parseInt(config.count, 10);
+    let count = parseInt(genericConfig.count, 10);
     let index = 1;
     for (let i = 0; i < count; i++) {
-        while (store.store.allKeys.find((v) => v.name === config.prefix + '_' + String(index).padStart(4, '0'))) {
+        while (store.store.allKeys.find((v) => v.name === genericConfig.prefix + '_' + String(index).padStart(4, '0'))) {
             index++;
         }
-        let keyname = config.prefix + '_' + String(index).padStart(4, '0');
+        let keyname = genericConfig.prefix + '_' + String(index).padStart(4, '0');
         spinner.text = 'Creating key ' + keyname;
-        let wallet = await client.createNewWallet({ workchain: workchain, type: kind });
+        let wallet = await config.client.createNewWallet({ workchain: workchain, type: kind });
         await store.store.addKey({
             name: keyname,
             address: wallet.wallet.address,
@@ -340,7 +343,7 @@ async function newKeys(client: TonClient, store: { store: KeyStore, name: string
     spinner.succeed('Keys created');
 }
 
-async function importKeys(store: { store: KeyStore, name: string }) {
+async function importKeys(config: Config, store: { store: KeyStore, name: string }) {
 
     let res = await prompt<{ kind: string, workchain: string }>([{
         type: 'select',
@@ -387,7 +390,7 @@ async function importKeys(store: { store: KeyStore, name: string }) {
             whitelistedAddress: whitelistedAddress
         });
         let address = await contractAddress(source);
-        let config = source.backup();
+        let sourceConfig = source.backup();
 
         // Persist keys
         const basicName = await askKeyName('Key Name', { store: store.store, suffixes: ['_restricted', '_master'] });
@@ -395,7 +398,7 @@ async function importKeys(store: { store: KeyStore, name: string }) {
             name: basicName + '_restricted',
             address: address,
             kind: source.type,
-            config: config,
+            config: sourceConfig,
             comment: '',
             publicKey: restrictedKey.publicKey
         }, Buffer.from(restrictedMnemonics.join(' ')));
@@ -403,7 +406,7 @@ async function importKeys(store: { store: KeyStore, name: string }) {
             name: basicName + '_master',
             address: address,
             kind: source.type,
-            config: config,
+            config: sourceConfig,
             comment: '',
             publicKey: masterKey.publicKey
         }, Buffer.from(masterMnemonics.join(' ')));
@@ -420,21 +423,21 @@ async function importKeys(store: { store: KeyStore, name: string }) {
     let key = await mnemonicToWalletKey(mnemonics);
     let source = createGenericWalletSource(res.kind, workchain, key.publicKey);
     let address = await contractAddress(source);
-    let config = source.backup();
+    let sourceConfig = source.backup();
 
     // Persist contract
     await store.store.addKey({
         name: name,
         address: address,
         kind: source.type,
-        config: config,
+        config: sourceConfig,
         comment: '',
         publicKey: key.publicKey
     }, Buffer.from(mnemonics.join(' ')));
     fs.writeFileSync(store.name, await store.store.save());
 }
 
-async function deleteKey(store: { store: KeyStore, name: string }) {
+async function deleteKey(config: Config, store: { store: KeyStore, name: string }) {
     let res = await prompt<{ wallet: string }>([{
         type: 'select',
         name: 'wallet',
@@ -455,7 +458,7 @@ async function deleteKey(store: { store: KeyStore, name: string }) {
     fs.writeFileSync(store.name, await store.store.save());
 }
 
-async function transfer(client: TonClient, store: { store: KeyStore, name: string }) {
+async function transfer(config: Config, store: { store: KeyStore, name: string }) {
 
     // Check contacts
     let contacts = await openContacts();
@@ -506,38 +509,55 @@ async function transfer(client: TonClient, store: { store: KeyStore, name: strin
 
     // Create wallet
     let contractSource = restoreWalletSource(source.kind, source.address, source.publicKey, source.config);
-    let wallet = await client.openWalletFromCustomContract(contractSource);
+    let wallet = await config.client.openWalletFromCustomContract(contractSource);
 
     // Transferring
-    spinner.text = 'Preparing transfer';
-    let seqno = await backoff(() => wallet.getSeqNo());
-    let deployed = await backoff(() => client.isContractDeployed(target));
-    if (!deployed) {
+    if (config.offline) {
         spinner.stop();
-        let conf = await prompt<{ confirm: string }>([{
-            type: 'confirm',
-            name: 'confirm',
-            message: 'Recepient account is not activated. Do you want to continue?',
-            initial: false
-        }]);
-        if (!conf.confirm) {
-            return;
-        }
-        spinner.start('Sending tranfer');
+        let seqno = await askSeqno();
+        let bounce = await askBounce();
+        spinner.start('Signing');
+        let signed = await wallet.transferSign({
+            to: target,
+            value: toNano(res.amount),
+            seqno: seqno,
+            secretKey: key.secretKey,
+            bounce
+        });
+        let boc = await signed.toBoc({ idx: false });
+        spinner.succeed('Scan this qr code by TON Coin Whales wallet');
+        console.log(qr.generate('ton://boc/' + boc.toString('base64url'), { small: true }));
     } else {
-        spinner.text = 'Sending tranfer';
+        spinner.text = 'Preparing transfer';
+        let seqno = await backoff(() => wallet.getSeqNo());
+        let deployed = await backoff(() => config.client.isContractDeployed(target));
+        if (!deployed) {
+            spinner.stop();
+            let conf = await prompt<{ confirm: string }>([{
+                type: 'confirm',
+                name: 'confirm',
+                message: 'Recepient account is not activated. Do you want to continue?',
+                initial: false
+            }]);
+            if (!conf.confirm) {
+                return;
+            }
+            spinner.start('Sending tranfer');
+        } else {
+            spinner.text = 'Sending tranfer';
+        }
+        await backoff(() => wallet.transfer({
+            to: target,
+            value: toNano(res.amount),
+            seqno: seqno,
+            secretKey: key.secretKey,
+            bounce: deployed
+        }));
+        spinner.succeed('Transfer sent');
     }
-    await backoff(() => wallet.transfer({
-        to: target,
-        value: toNano(res.amount),
-        seqno: seqno,
-        secretKey: key.secretKey,
-        bounce: deployed
-    }));
-    spinner.succeed('Transfer sent');
 }
 
-async function exportWalletForTon(client: TonClient, store: KeyStore) {
+async function exportWalletForTon(config: Config, store: KeyStore) {
     let res = await prompt<{ export_wallet: string, name: string }>([{
         type: 'select',
         name: 'export_wallet',
@@ -585,8 +605,6 @@ export async function viewKeystore(config: Config) {
     if (!store) {
         return;
     }
-    const client = new TonClient({ endpoint: config.test ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://toncenter.com/api/v2/jsonRPC' });
-
     while (true) {
         let res = await prompt<{ command: string }>([{
             type: 'select',
@@ -609,38 +627,38 @@ export async function viewKeystore(config: Config) {
         }]);
 
         if (res.command === 'delete-key') {
-            await deleteKey({ store: store.store, name: store.name });
+            await deleteKey(config, { store: store.store, name: store.name });
         }
         if (res.command === 'import-keys') {
-            await importKeys({ store: store.store, name: store.name });
+            await importKeys(config, { store: store.store, name: store.name });
         }
         if (res.command === 'list-keys') {
             if (config.offline) {
-                await listKeys(store.store);
+                await listKeys(config, store.store);
             } else {
-                await listBalances(client, store.store);
+                await listBalances(config, store.store);
             }
         }
         if (res.command === 'create-keys') {
-            await newKeys(client, { store: store.store, name: store.name });
+            await newKeys(config, { store: store.store, name: store.name });
         }
         if (res.command === 'transfer') {
-            await transfer(client, { store: store.store, name: store.name });
+            await transfer(config, { store: store.store, name: store.name });
         }
         if (res.command === 'backup-keys') {
-            await backupKeys({ store: store.store, name: store.name });
+            await backupKeys(config, { store: store.store, name: store.name });
         }
         if (res.command === 'backup-paper-keys') {
-            await backupPaper({ store: store.store, name: store.name });
+            await backupPaper(config, { store: store.store, name: store.name });
         }
         if (res.command === 'backup-paper-wallet') {
-            await backupPaperSingle({ store: store.store, name: store.name });
+            await backupPaperSingle(config, { store: store.store, name: store.name });
         }
         if (res.command === 'reveal-wallet') {
-            await revealSingle({ store: store.store, name: store.name });
+            await revealSingle(config, { store: store.store, name: store.name });
         }
         if (res.command === 'export-wallet') {
-            await exportWalletForTon(client, store.store);
+            await exportWalletForTon(config, store.store);
         }
         if (res.command === 'exit') {
             return;
