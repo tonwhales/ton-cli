@@ -1,4 +1,4 @@
-import { fromNano, KeyStore, toNano, validateWalletType } from "ton";
+import { CommonMessageInfo, ExternalMessage, fromNano, KeyStore, toNano, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -23,6 +23,7 @@ import { backupSingleTemplate, backupTemplate } from "./backup/backupTemplate";
 import { askSeqno } from "./utils/askSeqno";
 import { askBounce } from "./utils/askBounce";
 import qr from 'qrcode-terminal';
+import qs from 'querystring';
 
 async function listKeys(config: Config, store: KeyStore) {
     var table = new Table({
@@ -526,7 +527,11 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
         });
         let boc = await signed.toBoc({ idx: false });
         spinner.succeed('Scan this qr code by TON Coin Whales wallet');
-        console.log(qr.generate('ton://boc/' + boc.toString('base64url'), { small: true }));
+        console.log(qr.generate('https://tonwhales.com/tools/send?' + new URLSearchParams({
+            data: boc.toString('base64url'),
+            exp: (Math.floor(Date.now() / 1000) + 10 * 60).toString(),
+            net: config.testnet ? 'test' : 'main'
+        }).toString(), { small: true }));
     } else {
         spinner.text = 'Preparing transfer';
         let seqno = await backoff(() => wallet.getSeqNo());
