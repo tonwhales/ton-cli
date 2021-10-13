@@ -5,6 +5,7 @@ import { viewKeystore } from './commands/viewKeystore';
 import yargs from 'yargs';
 import { Config } from './Config';
 import { restoreKeystore } from './commands/restoreKeystore';
+import { sendFile } from './commands/sendFile';
 
 (async () => {
     try {
@@ -33,6 +34,7 @@ import { restoreKeystore } from './commands/restoreKeystore';
                 { message: 'Open keystore', name: 'open-keystore' },
                 { message: 'Create keystore', name: 'new-keystore' },
                 { message: 'Restore keystore', name: 'restore-keystore' },
+                { message: 'Send file', name: 'send-file', hint: 'Send BOC file to network' },
             ]
         }]);
         if (res.command === 'new-keystore') {
@@ -43,6 +45,9 @@ import { restoreKeystore } from './commands/restoreKeystore';
         }
         if (res.command === 'restore-keystore') {
             await restoreKeystore(config);
+        }
+        if (res.command === 'send-file') {
+            await sendFile(config);
         }
     } catch (e) {
         console.warn(e);
