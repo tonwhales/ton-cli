@@ -511,31 +511,21 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
     let contractSource = restoreWalletSource(source.kind, source.address, source.publicKey, source.config);
     let wallet = await config.client.openWalletFromCustomContract(contractSource);
 
-    // Transferring
+    //
+    // Prepare
+    //
+    let seqno: number;
+    let bounce: boolean;
     if (config.offline) {
         spinner.stop();
-        let seqno = await askSeqno(wallet.address, config);
-        let bounce = await askBounce();
-        spinner.start('Signing');
-        let signed = await wallet.transferSign({
-            to: target,
-            value: toNano(res.amount),
-            seqno: seqno,
-            secretKey: key.secretKey,
-            bounce
-        });
-        let boc = await signed.toBoc({ idx: false });
-        spinner.succeed('Scan this qr code by TON Coin Whales wallet');
-        console.log(qr.generate(`https://${config.testnet ? 'test.' : ''}tonwhales.com/tools/send?${new URLSearchParams({
-            data: boc.toString('base64url'),
-            exp: (Math.floor(Date.now() / 1000) + 10 * 60).toString(),
-        }).toString()}`, { small: true }));
+        seqno = await askSeqno(wallet.address, config);
+        bounce = await askBounce();
     } else {
         spinner.text = 'Preparing transfer';
-        let seqno = await backoff(() => wallet.getSeqNo());
-        let deployed = await backoff(() => config.client.isContractDeployed(target));
-        if (!deployed) {
-            spinner.stop();
+        seqno = await backoff(() => wallet.getSeqNo());
+        bounce = await backoff(() => config.client.isContractDeployed(target));
+        spinner.stop();
+        if (!bounce) {
             let conf = await prompt<{ confirm: string }>([{
                 type: 'confirm',
                 name: 'confirm',
@@ -545,17 +535,44 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
             if (!conf.confirm) {
                 return;
             }
-            spinner.start('Sending tranfer');
-        } else {
-            spinner.text = 'Sending tranfer';
         }
-        await backoff(() => wallet.transfer({
+    }
+
+    //
+    // Signing
+    //
+
+    spinner.start('Signing');
+    let signed = await wallet.transferSign({
+        to: target,
+        value: toNano(res.amount),
+        seqno: seqno,
+        secretKey: key.secretKey,
+        bounce
+    });
+    let boc = await signed.toBoc({ idx: false });
+
+    //
+    // Sending
+    //
+
+    if (config.offline) {
+        spinner.succeed('Scan this qr with your phone to send this transaction. Transaction valid only for 60 seconds!.');
+        console.log(qr.generate(`https://${config.testnet ? 'test.' : ''}tonwhales.com/tools/send?${new URLSearchParams({
+            data: boc.toString('base64url'),
+            exp: (Math.floor(Date.now() / 1000) + 60).toString(),
+        }).toString()}`, { small: true }));
+    } else {
+        spinner.text = 'Sending';
+        let signed = await wallet.transferSign({
             to: target,
             value: toNano(res.amount),
             seqno: seqno,
             secretKey: key.secretKey,
-            bounce: deployed
-        }));
+            bounce
+        });
+        let boc = await signed.toBoc({ idx: false });
+        await backoff(() => config.client.sendFile(boc));
         spinner.succeed('Transfer sent');
     }
 }
