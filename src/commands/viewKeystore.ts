@@ -514,7 +514,7 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
     // Transferring
     if (config.offline) {
         spinner.stop();
-        let seqno = await askSeqno();
+        let seqno = await askSeqno(wallet.address, config);
         let bounce = await askBounce();
         spinner.start('Signing');
         let signed = await wallet.transferSign({
@@ -526,11 +526,10 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
         });
         let boc = await signed.toBoc({ idx: false });
         spinner.succeed('Scan this qr code by TON Coin Whales wallet');
-        console.log(qr.generate('https://tonwhales.com/tools/send?' + new URLSearchParams({
+        console.log(qr.generate(`https://${config.testnet ? 'test.' : ''}tonwhales.com/tools/send?${new URLSearchParams({
             data: boc.toString('base64url'),
             exp: (Math.floor(Date.now() / 1000) + 10 * 60).toString(),
-            net: config.testnet ? 'test' : 'main'
-        }).toString(), { small: true }));
+        }).toString()}`, { small: true }));
     } else {
         spinner.text = 'Preparing transfer';
         let seqno = await backoff(() => wallet.getSeqNo());
