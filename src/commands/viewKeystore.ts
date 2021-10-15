@@ -1,4 +1,4 @@
-import { fromNano, KeyStore, toNano, validateWalletType } from "ton";
+import { fromNano, KeyStore, SendMode, toNano, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -490,9 +490,38 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
     }, {
         type: 'numeral',
         name: 'amount',
-        message: 'Amount',
+        message: 'Amount (zero for all)',
         initial: 0
     }]);
+
+    // Flags
+    let amount = res.amount;
+    let paySeparatly: boolean = await askConfirm('Include gas fees separately?', true);
+    let transferAll: boolean = false;
+    let destroyOnZero: boolean = false;
+    if (amount <= 0) {
+        transferAll = await askConfirm('Do you want to transfer everyting?', false);
+        if (!transferAll) {
+            return;
+        }
+        destroyOnZero = await askConfirm('Do you want to destroy contract after transfer?', false);
+        if (!(await askConfirm('Make sure that you have at least 0.15 in your account.', true))) {
+            return;
+        }
+        amount = 0.1;
+    }
+
+    // Mode
+    let sendMode = SendMode.IGNORE_ERRORS;
+    if (paySeparatly) {
+        sendMode |= SendMode.PAY_GAS_SEPARATLY;
+    }
+    if (transferAll) {
+        sendMode |= SendMode.CARRRY_ALL_REMAINING_BALANCE;
+    }
+    if (destroyOnZero) {
+        sendMode |= SendMode.DESTROY_ACCOUNT_IF_ZERO;
+    }
 
     // Ask for store password
     const password = await askPassword(store.store);
@@ -516,6 +545,7 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
     //
     let seqno: number;
     let bounce: boolean;
+    // let mode: SendMode = SendMode.IGNORE_ERRORS + SendMode.PAY_GAS_SEPARATLY;
     if (config.offline) {
         spinner.stop();
         seqno = await askSeqno(wallet.address, config);
@@ -545,10 +575,12 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
     spinner.start('Signing');
     let signed = await wallet.transferSign({
         to: target,
-        value: toNano(res.amount),
+        value: toNano(amount),
         seqno: seqno,
         secretKey: key.secretKey,
-        bounce
+        bounce,
+        sendMode,
+        timeout: Math.floor(Date.now() / 1000) + (config.offline ? 600 /* 5 min */ : 60 /* 1 min */)
     });
     let boc = await signed.toBoc({ idx: false });
 
@@ -564,14 +596,6 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
         }).toString()}`, { small: true }));
     } else {
         spinner.text = 'Sending';
-        let signed = await wallet.transferSign({
-            to: target,
-            value: toNano(res.amount),
-            seqno: seqno,
-            secretKey: key.secretKey,
-            bounce
-        });
-        let boc = await signed.toBoc({ idx: false });
         await backoff(() => config.client.sendFile(boc));
         spinner.succeed('Transfer sent');
     }
