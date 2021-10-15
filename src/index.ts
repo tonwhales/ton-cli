@@ -7,6 +7,8 @@ import { Config } from './Config';
 import { restoreKeystore } from './commands/restoreKeystore';
 import { sendFile } from './commands/sendFile';
 import { TonClient } from 'ton';
+import { newMnemonics } from './commands/newMnemonics';
+import { newPassphrase } from './commands/newPassphrase';
 
 (async () => {
     try {
@@ -48,6 +50,8 @@ import { TonClient } from 'ton';
                 { message: 'Create keystore', name: 'new-keystore' },
                 { message: 'Restore keystore', name: 'restore-keystore' },
                 { message: 'Send file', name: 'send-file', hint: 'Send BOC file to network' },
+                { message: 'Generate secure mnemonics', name: 'new-mnemonics' },
+                { message: 'Generate secure passphrase', name: 'new-passphrase' },
             ]
         }]);
         if (res.command === 'new-keystore') {
@@ -61,6 +65,12 @@ import { TonClient } from 'ton';
         }
         if (res.command === 'send-file') {
             await sendFile(config);
+        }
+        if (res.command === 'new-mnemonics') {
+            await newMnemonics(config);
+        }
+        if (res.command === 'new-passphrase') {
+            await newPassphrase(config);
         }
     } catch (e) {
         console.warn(e);

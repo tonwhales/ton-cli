@@ -1,4 +1,4 @@
-import { CommonMessageInfo, ExternalMessage, fromNano, KeyStore, toNano, validateWalletType } from "ton";
+import { fromNano, KeyStore, toNano, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -23,7 +23,6 @@ import { backupSingleTemplate, backupTemplate } from "./backup/backupTemplate";
 import { askSeqno } from "./utils/askSeqno";
 import { askBounce } from "./utils/askBounce";
 import qr from 'qrcode-terminal';
-import qs from 'querystring';
 
 async function listKeys(config: Config, store: KeyStore) {
     var table = new Table({
