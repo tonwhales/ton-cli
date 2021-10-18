@@ -50,5 +50,9 @@
     {
         "name": "whitelisted",
         "address": "EQBGf1-oq7DXIYl0YOvV7fWiHPQ73MuSPQRmiDVwiSeuB6xE"
+    },
+    {
+        "name": "validator_controller",
+        "address": "Ef9lfW4oe-4IEvWCyRep9FeTmm4UpbcPgzNMAdBt7ZcxK391"
     }
 ]

@@ -2682,10 +2682,10 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-ton-contracts@1.5.0:
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/ton-contracts/-/ton-contracts-1.5.0.tgz#ffe689f7469db4dc8710e68eca0b775acd98bed5"
-  integrity sha512-4OfUUJZgstHRuItYbb1OIiQj4cYKJNjXI5LMRzhGT5IQalaleRKetzSwqwz7QYYTKSJxi0HyaBOhQA20KC6Hgg==
+ton-contracts@1.6.0:
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/ton-contracts/-/ton-contracts-1.6.0.tgz#37bae55d7cff8170ebab5b902b2d51ede9ac89a4"
+  integrity sha512-iRWLdZwnSqCFAALDxN9XWhsaLc61aVFGzV+KSm6aHlmx7EY/RTw/mstokf2L/k3IpQGVPOE7XcH9QDNQYh4/kQ==
   dependencies:
     "@openland/patterns" "^0.0.2"
 

@@ -8,7 +8,7 @@ import {
     WalletV3R1Source,
     WalletV3R2Source
 } from "ton";
-import { WhitelistedWalletSource } from "ton-contracts";
+import { ValidatorControllerSource, WhitelistedWalletSource } from "ton-contracts";
 
 export function createGenericWalletSource(kind: string, workChain: number, publicKey: Buffer) {
     // V1 Wallets
@@ -94,6 +94,9 @@ export function restoreWalletSource(kind: string, address: Address, publicKey: B
     // Custom
     if (kind === 'org.ton.wallets.whitelisted') {
         return WhitelistedWalletSource.restore(config);
+    }
+    if (kind === 'org.ton.validator.controller') {
+        return ValidatorControllerSource.restore(config);
     }
 
     throw Error('Unknown wallet kind: ' + kind);

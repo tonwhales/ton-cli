@@ -14,7 +14,7 @@ import { askText } from "./utils/askText";
 import { exportKey } from "./utils/exportKey";
 import { createGenericWalletSource, restoreWalletSource } from "./storage/walletSources";
 import { askMnemonics } from "./utils/askMnemonics";
-import { WhitelistedWalletSource } from "ton-contracts";
+import { ValidatorControllerSource, WhitelistedWalletSource } from "ton-contracts";
 import { contractAddress } from "ton/dist/contracts/sources/ContractSource";
 import { askAddress } from "./utils/askAddress";
 import { askKeyName } from "./utils/askKeyName";
@@ -26,7 +26,7 @@ import qr from 'qrcode-terminal';
 
 async function listKeys(config: Config, store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'WC', 'Address', 'Kind'], colWidths: [24, 4, 56, 32]
+        head: ['Name', 'WC', 'Address', 'Kind'], colWidths: [36, 4, 56, 32]
     });
     for (let key of store.allKeys) {
         table.push([key.name, key.address.workChain + '', key.address.toFriendly(), key.kind])
@@ -193,14 +193,14 @@ async function revealSingle(config: Config, store: { store: KeyStore, name: stri
 
 async function listBalances(config: Config, store: KeyStore) {
     var table = new Table({
-        head: ['Name', 'WC', 'Address', 'Balance', 'Kind', 'Status'], colWidths: [24, 4, 56, 16, 32, 24]
+        head: ['Name', 'WC', 'Address', 'Balance', 'Kind', 'Status'], colWidths: [36, 4, 56, 16, 32, 24]
     });
     const spinner = ora('Fetching balances...').start();
     for (let key of store.allKeys) {
         spinner.text = 'Fetching balance ' + key.name;
         let balance = await backoff(() => config.client.getBalance(key.address));
         let state: string = (await config.client.getContractState(key.address)).state;
-        if (key.kind === 'org.ton.wallets.whitelisted' && state === 'active') {
+        if ((key.kind === 'org.ton.wallets.whitelisted' || key.kind === 'org.ton.validator.controller') && state === 'active') {
             let cooldown = parseInt((await config.client.callGetMethod(key.address, 'restricted_cooldown')).stack[0][1], 16);
             if (cooldown > 0) {
                 state = 'cooldown ' + cooldown + ' s';
@@ -235,7 +235,8 @@ async function newKeys(config: Config, store: { store: KeyStore, name: string })
             { message: 'Wallet v1', name: 'org.ton.wallets.simple', hint: 'unsupported' },
             { message: 'Wallet v1r2', name: 'org.ton.wallets.simple.r2' },
             { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' },
-            { message: 'Restricted (Whitelisted)', name: 'org.ton.wallets.whitelisted', hint: 'restricted wallet' }
+            { message: 'Restricted (Whitelisted)', name: 'org.ton.wallets.whitelisted', hint: 'restricted wallet' },
+            { message: 'Validator Controller', name: 'org.ton.validator.controller', hint: 'Secure wallet for validators' }
         ]
     }]);
 
@@ -256,6 +257,53 @@ async function newKeys(config: Config, store: { store: KeyStore, name: string })
         // Ask for whitelisted address
         const whitelistedAddress = await askAddress({ message: 'Whitelisted address' });
         const source = WhitelistedWalletSource.create({
+            workchain,
+            masterKey: masterKey.publicKey,
+            restrictedKey: restrictedKey.publicKey,
+            whitelistedAddress: whitelistedAddress
+        });
+        const address = await contractAddress(source);
+        const sourceConfig = source.backup();
+
+        // Ask for name
+        const basicName = await askKeyName('Key Name', { store: store.store, suffixes: ['_restricted', '_master'] });
+
+        await store.store.addKey({
+            name: basicName + '_restricted',
+            address: address,
+            kind: source.type,
+            config: sourceConfig,
+            comment: '',
+            publicKey: restrictedKey.publicKey
+        }, Buffer.from(restrictedMnemonics.join(' ')));
+        await store.store.addKey({
+            name: basicName + '_master',
+            address: address,
+            kind: source.type,
+            config: sourceConfig,
+            comment: '',
+            publicKey: masterKey.publicKey
+        }, Buffer.from(masterMnemonics.join(' ')));
+
+        // Write to disk
+        fs.writeFileSync(store.name, await store.store.save());
+
+        return;
+    }
+
+    if (res.kind === 'org.ton.validator.controller') {
+
+        // Creaste keys
+        const spinner = ora('Creating keys').start();
+        const masterMnemonics = await mnemonicNew();
+        const masterKey = await mnemonicToWalletKey(masterMnemonics);
+        const restrictedMnemonics = await mnemonicNew();
+        const restrictedKey = await mnemonicToWalletKey(restrictedMnemonics);
+        spinner.stop();
+
+        // Ask for whitelisted address
+        const whitelistedAddress = await askAddress({ message: 'Elector address' });
+        const source = ValidatorControllerSource.create({
             workchain,
             masterKey: masterKey.publicKey,
             restrictedKey: restrictedKey.publicKey,
@@ -365,7 +413,8 @@ async function importKeys(config: Config, store: { store: KeyStore, name: string
             { message: 'Wallet v1', name: 'org.ton.wallets.simple', hint: 'unsupported' },
             { message: 'Wallet v1r2', name: 'org.ton.wallets.simple.r2' },
             { message: 'Wallet v1r3', name: 'org.ton.wallets.simple.r3', hint: 'for validator' },
-            { message: 'Restricted (Whitelisted)', name: 'org.ton.wallets.whitelisted', hint: 'restricted wallet' }
+            { message: 'Restricted (Whitelisted)', name: 'org.ton.wallets.whitelisted', hint: 'restricted wallet' },
+            { message: 'Validator Controller', name: 'org.ton.validator.controller', hint: 'Secure wallet for validators' }
         ]
     }]);
 
@@ -384,6 +433,50 @@ async function importKeys(config: Config, store: { store: KeyStore, name: string
         let restrictedKey = await mnemonicToWalletKey(restrictedMnemonics);
         let masterKey = await mnemonicToWalletKey(masterMnemonics);
         let source = WhitelistedWalletSource.create({
+            masterKey: masterKey.publicKey,
+            restrictedKey: restrictedKey.publicKey,
+            workchain,
+            whitelistedAddress: whitelistedAddress
+        });
+        let address = await contractAddress(source);
+        let sourceConfig = source.backup();
+
+        // Persist keys
+        const basicName = await askKeyName('Key Name', { store: store.store, suffixes: ['_restricted', '_master'] });
+        await store.store.addKey({
+            name: basicName + '_restricted',
+            address: address,
+            kind: source.type,
+            config: sourceConfig,
+            comment: '',
+            publicKey: restrictedKey.publicKey
+        }, Buffer.from(restrictedMnemonics.join(' ')));
+        await store.store.addKey({
+            name: basicName + '_master',
+            address: address,
+            kind: source.type,
+            config: sourceConfig,
+            comment: '',
+            publicKey: masterKey.publicKey
+        }, Buffer.from(masterMnemonics.join(' ')));
+
+        // Write to disk
+        fs.writeFileSync(store.name, await store.store.save());
+
+        return;
+    }
+
+    if (res.kind === 'org.ton.validator.controller') {
+
+        // Key Parameters
+        const restrictedMnemonics = await askMnemonics('Restricted Key mnemonics');
+        const masterMnemonics = await askMnemonics('Main Key mnemonics');
+        const whitelistedAddress = await askAddress({ message: 'Elector address' });
+
+        // Create contract
+        let restrictedKey = await mnemonicToWalletKey(restrictedMnemonics);
+        let masterKey = await mnemonicToWalletKey(masterMnemonics);
+        let source = ValidatorControllerSource.create({
             masterKey: masterKey.publicKey,
             restrictedKey: restrictedKey.publicKey,
             workchain,
