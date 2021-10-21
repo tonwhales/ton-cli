@@ -9,6 +9,7 @@ import { sendFile } from './commands/sendFile';
 import { TonClient } from 'ton';
 import { newMnemonics } from './commands/newMnemonics';
 import { newPassphrase } from './commands/newPassphrase';
+import { writeRawWallet } from './commands/writeRawWallet';
 
 (async () => {
     try {
@@ -52,6 +53,7 @@ import { newPassphrase } from './commands/newPassphrase';
                 { message: 'Send file', name: 'send-file', hint: 'Send BOC file to network' },
                 { message: 'Generate secure mnemonics', name: 'new-mnemonics' },
                 { message: 'Generate secure passphrase', name: 'new-passphrase' },
+                { message: 'Write raw wallet for TON node', name: 'write-wallet' },
             ]
         }]);
         if (res.command === 'new-keystore') {
@@ -71,6 +73,9 @@ import { newPassphrase } from './commands/newPassphrase';
         }
         if (res.command === 'new-passphrase') {
             await newPassphrase(config);
+        }
+        if (res.command === 'write-wallet') {
+            await writeRawWallet(config);
         }
     } catch (e) {
         console.warn(e);

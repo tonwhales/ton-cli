@@ -777,11 +777,11 @@ export async function viewKeystore(config: Config) {
                 { message: 'Create wallet', name: 'create-keys' },
                 { message: 'Delete wallet', name: 'delete-key' },
                 { message: 'Import wallet', name: 'import-keys' },
-                { message: 'Export wallet for TON Node', name: 'export-wallet' },
                 { message: 'Backup wallets', name: 'backup-keys' },
                 { message: 'Paper backup keystore', name: 'backup-paper-keys' },
                 { message: 'Paper backup wallet', name: 'backup-paper-wallet' },
                 { message: 'Reveal wallet key', name: 'reveal-wallet' },
+                { message: 'Export wallet for TON Node', name: 'export-wallet' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
