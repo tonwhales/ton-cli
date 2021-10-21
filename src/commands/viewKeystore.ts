@@ -190,6 +190,28 @@ async function revealSingle(config: Config, store: { store: KeyStore, name: stri
     console.log('\n');
 }
 
+async function revealAddress(config: Config, store: { store: KeyStore, name: string }) {
+
+    // Ask for wallet
+    let wallet = (await prompt<{ wallet: string }>([{
+        type: 'select',
+        name: 'wallet',
+        message: 'Wallet to reveal',
+        initial: 0,
+        choices: store.store.allKeys.map((v) => ({
+            name: v.name,
+            message: v.name,
+            hint: v.address.toFriendly()
+        }))
+    }])).wallet;
+    const key = store.store.allKeys.find((v) => v.name === wallet)!;
+
+    console.log('Name:     ' + wallet);
+    console.log('Address:  ' + key.address.toFriendly());
+    console.log('Contract: ' + key.kind);
+    console.log(qr.generate('ton://transfer/' + key.address.toFriendly(), { small: true }));
+}
+
 
 async function listBalances(config: Config, store: KeyStore) {
     var table = new Table({
@@ -751,6 +773,7 @@ export async function viewKeystore(config: Config) {
             choices: [
                 { message: 'List wallets', name: 'list-keys' },
                 { message: 'Transfer', name: 'transfer' },
+                { message: 'Show wallet', name: 'show-wallet' },
                 { message: 'Create wallet', name: 'create-keys' },
                 { message: 'Delete wallet', name: 'delete-key' },
                 { message: 'Import wallet', name: 'import-keys' },
@@ -793,6 +816,9 @@ export async function viewKeystore(config: Config) {
         }
         if (res.command === 'reveal-wallet') {
             await revealSingle(config, { store: store.store, name: store.name });
+        }
+        if (res.command === 'show-wallet') {
+            await revealAddress(config, { store: store.store, name: store.name });
         }
         if (res.command === 'export-wallet') {
             await exportWalletForTon(config, store.store);
