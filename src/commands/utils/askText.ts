@@ -5,7 +5,7 @@ export async function askText(args: { message: string, initial?: string }) {
         type: 'input',
         name: 'data',
         message: args.message,
-        initial: args.initial
+        initial: args.initial,
     }]);
     return p.data;
 }
