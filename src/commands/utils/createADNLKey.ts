@@ -65,6 +65,6 @@ export async function createADNLKey() {
     return {
         name,
         friendlyName,
-        key: Buffer.concat([Buffer.from([17, 23, 68, 49]), key.secretKey.slice(0, 32)])
+        key: Buffer.concat([Buffer.of(17, 23, 68, 49), key.secretKey.slice(0, 32)])
     }
 }
