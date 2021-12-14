@@ -12,7 +12,7 @@ export async function newKey(config: Config) {
     while (true) {
         console.log('Searching for name...');
         for (let i = 0; i < 1000; i++) {
-            const key = await createADNLKey();
+            const key = await createADNLKey(Buffer.from([]));
             if (key.friendlyName.startsWith(prefix)) {
                 console.warn(key.friendlyName);
                 let confirm = await askConfirm('Do you want to use this name?', true);
