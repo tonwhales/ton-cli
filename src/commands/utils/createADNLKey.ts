@@ -1,4 +1,4 @@
-import { getSecureRandomBytes, keyPairFromSecretKey, keyPairFromSeed } from 'ton-crypto'
+import { getSecureRandomBytes, keyPairFromSecretKey, keyPairFromSeed, sha256 } from 'ton-crypto'
 
 function crc16(data: Buffer) {
     const poly = 0x1021;
@@ -57,13 +57,12 @@ export async function createADNLFriendlyName(src: Buffer) {
     return base32Encode(data).slice(1);
 }
 
-export async function createADNLKey() {
-    const seed = await getSecureRandomBytes(32);
+export async function createADNLKey(seed: Buffer) {
     const key = keyPairFromSeed(seed);
-    const name = key.publicKey.toString('hex').toUpperCase();
-    const friendlyName = await createADNLFriendlyName(key.publicKey);
+    const name = await sha256(Buffer.concat([Buffer.from([0x48, 0x13, 0xB4, 0xC6]), key.publicKey.slice(0, 32)]));
+    const friendlyName = await createADNLFriendlyName(name);
     return {
-        name,
+        name: name.toString('hex').toUpperCase(),
         friendlyName,
         key: Buffer.concat([Buffer.from([0x17, 0x23, 0x68, 0x49]), key.secretKey.slice(0, 32)])
     }

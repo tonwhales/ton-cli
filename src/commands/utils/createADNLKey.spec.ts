@@ -8,7 +8,8 @@ describe('createADNLKey', () => {
         expect(await createADNLFriendlyName(Buffer.from(name, 'hex'))).toEqual(friendly);
 
         // Check magic
-        const key = await createADNLKey();
-        expect(key.key.slice(0,4).equals(privateKey.slice(0,4))).toBe(true);
+        const key = await createADNLKey(privateKey.slice(4));
+        console.warn(key);
+        expect(key.key.slice(0, 4).equals(privateKey.slice(0, 4))).toBe(true);
     });
 });

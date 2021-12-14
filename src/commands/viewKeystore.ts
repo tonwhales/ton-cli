@@ -221,9 +221,9 @@ async function listBalances(config: Config, store: KeyStore) {
     for (let key of store.allKeys) {
         spinner.text = 'Fetching balance ' + key.name;
         let balance = await backoff(() => config.client.getBalance(key.address));
-        let state: string = (await config.client.getContractState(key.address)).state;
+        let state: string = (await backoff(() => config.client.getContractState(key.address))).state;
         if ((key.kind === 'org.ton.wallets.whitelisted' || key.kind === 'org.ton.validator.controller') && state === 'active') {
-            let cooldown = parseInt((await config.client.callGetMethod(key.address, 'restricted_cooldown')).stack[0][1], 16);
+            let cooldown = parseInt((await backoff(() => config.client.callGetMethod(key.address, 'restricted_cooldown'))).stack[0][1], 16);
             if (cooldown > 0) {
                 state = 'cooldown ' + cooldown + ' s';
             }
