@@ -1,6 +1,6 @@
 {
   "name": "ton-cli",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "repository": "https://github.com/ex3ndr/ton-cli.git",
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
