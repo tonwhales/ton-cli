@@ -15,7 +15,7 @@ import { exportKey } from "./utils/exportKey";
 import { createGenericWalletSource, restoreWalletSource } from "./storage/walletSources";
 import { askMnemonics } from "./utils/askMnemonics";
 import { ValidatorControllerSource, WhitelistedWalletSource } from "ton-contracts";
-import { contractAddress } from "ton/dist/contracts/sources/ContractSource";
+import { contractAddress } from "ton";
 import { askAddress } from "./utils/askAddress";
 import { askKeyName } from "./utils/askKeyName";
 import { askConfirmDanger } from "./utils/askConfirmDanger";
@@ -284,7 +284,7 @@ async function newKeys(config: Config, store: { store: KeyStore, name: string })
             restrictedKey: restrictedKey.publicKey,
             whitelistedAddress: whitelistedAddress
         });
-        const address = await contractAddress(source);
+        const address = contractAddress(source);
         const sourceConfig = source.backup();
 
         // Ask for name
@@ -331,7 +331,7 @@ async function newKeys(config: Config, store: { store: KeyStore, name: string })
             restrictedKey: restrictedKey.publicKey,
             whitelistedAddress: whitelistedAddress
         });
-        const address = await contractAddress(source);
+        const address = contractAddress(source);
         const sourceConfig = source.backup();
 
         // Ask for name
@@ -460,7 +460,7 @@ async function importKeys(config: Config, store: { store: KeyStore, name: string
             workchain,
             whitelistedAddress: whitelistedAddress
         });
-        let address = await contractAddress(source);
+        let address = contractAddress(source);
         let sourceConfig = source.backup();
 
         // Persist keys
@@ -504,7 +504,7 @@ async function importKeys(config: Config, store: { store: KeyStore, name: string
             workchain,
             whitelistedAddress: whitelistedAddress
         });
-        let address = await contractAddress(source);
+        let address = contractAddress(source);
         let sourceConfig = source.backup();
 
         // Persist keys
@@ -537,7 +537,7 @@ async function importKeys(config: Config, store: { store: KeyStore, name: string
     const mnemonics = await askMnemonics('Key mnemonics');
     let key = await mnemonicToWalletKey(mnemonics);
     let source = createGenericWalletSource(res.kind, workchain, key.publicKey);
-    let address = await contractAddress(source);
+    let address = contractAddress(source);
     let sourceConfig = source.backup();
 
     // Persist contract

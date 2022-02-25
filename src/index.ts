@@ -11,6 +11,7 @@ import { newMnemonics } from './commands/newMnemonics';
 import { newPassphrase } from './commands/newPassphrase';
 import { writeRawWallet } from './commands/writeRawWallet';
 import { newKey } from './commands/newKey';
+import { downloadTransactions } from './commands/downloadTransactions';
 
 (async () => {
     try {
@@ -29,7 +30,7 @@ import { newKey } from './commands/newKey';
         }
         let client = offline
             ? new TonClient({ endpoint: '' })
-            : new TonClient({ endpoint: testnet ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://toncenter.com/api/v2/jsonRPC' });
+            : new TonClient({ endpoint: testnet ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://mainnet.tonhubapi.com/jsonRPC' });
         const config: Config = {
             testnet: testnet,
             offline,
@@ -55,7 +56,8 @@ import { newKey } from './commands/newKey';
                 { message: 'Generate secure mnemonics', name: 'new-mnemonics' },
                 { message: 'Generate secure passphrase', name: 'new-passphrase' },
                 { message: 'Write raw wallet for TON node', name: 'write-wallet' },
-                { message: 'Create ADNL key', name: 'create-key' }
+                { message: 'Create ADNL key', name: 'create-key' },
+                { message: 'Download address history', name: 'download' }
             ]
         }]);
         if (res.command === 'new-keystore') {
@@ -81,6 +83,9 @@ import { newKey } from './commands/newKey';
         }
         if (res.command === 'create-key') {
             await newKey(config);
+        }
+        if (res.command === 'download') {
+            await downloadTransactions(config);
         }
     } catch (e) {
         console.warn(e);

@@ -35,15 +35,16 @@
     "@types/bn.js": "^5.1.0",
     "@types/cli-table": "^0.3.0",
     "cli-table": "^0.3.6",
+    "date-fns": "^2.28.0",
     "enquirer": "^2.3.6",
     "fp-ts": "^2.11.2",
     "io-ts": "^2.2.16",
     "ora": "5.4.1",
     "prompt": "^1.2.0",
     "qrcode-terminal": "^0.12.0",
-    "ton": "4.15.0",
-    "ton-contracts": "1.6.0",
-    "ton-crypto": "1.5.1",
+    "ton": "9.1.0",
+    "ton-contracts": "2.3.2",
+    "ton-crypto": "2.1.0",
     "yargs": "^17.1.1"
   }
 }
