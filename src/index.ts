@@ -30,7 +30,7 @@ import { downloadTransactions } from './commands/downloadTransactions';
         }
         let client = offline
             ? new TonClient({ endpoint: '' })
-            : new TonClient({ endpoint: testnet ? 'https://testnet.toncenter.com/api/v2/jsonRPC' : 'https://mainnet.tonhubapi.com/jsonRPC' });
+            : new TonClient({ endpoint: testnet ? 'https://sandbox.tonhubapi.com/jsonRPC' : 'https://mainnet.tonhubapi.com/jsonRPC' });
         const config: Config = {
             testnet: testnet,
             offline,
