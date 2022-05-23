@@ -2717,10 +2717,10 @@ ton-crypto@2.1.0:
     ton-crypto-primitives "2.0.0"
     tweetnacl "1.0.3"
 
-ton@9.1.0:
-  version "9.1.0"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-9.1.0.tgz#5554b81bfa9095b4f966b32756d9e2fdea8de80f"
-  integrity sha512-Lg2ydHYkXM2LEqV4157a4glBiWaUE23b6lBSTibYxanuNZOerxCIRAmN1Vserij5cFpPtC/0Pa++ay7SRDJAYQ==
+ton@11.12.0:
+  version "11.12.0"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-11.12.0.tgz#4cae6fe62dddb178c19b8379dfc61dd00100edf6"
+  integrity sha512-45YPU794whbYvcCGvLxK/ZyzbyRFCyKybJgZMzlRTpTYfHr3mv0bV5jU7vFbLm0b/5Zbs7d4ZsMegeYcLpZjTg==
   dependencies:
     axios "^0.25.0"
     bn.js "5.2.0"

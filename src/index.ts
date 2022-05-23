@@ -10,7 +10,6 @@ import { TonClient } from 'ton';
 import { newMnemonics } from './commands/newMnemonics';
 import { newPassphrase } from './commands/newPassphrase';
 import { writeRawWallet } from './commands/writeRawWallet';
-import { newKey } from './commands/newKey';
 import { downloadTransactions } from './commands/downloadTransactions';
 
 (async () => {
@@ -56,7 +55,6 @@ import { downloadTransactions } from './commands/downloadTransactions';
                 { message: 'Generate secure mnemonics', name: 'new-mnemonics' },
                 { message: 'Generate secure passphrase', name: 'new-passphrase' },
                 { message: 'Write raw wallet for TON node', name: 'write-wallet' },
-                { message: 'Create ADNL key', name: 'create-key' },
                 { message: 'Download address history', name: 'download' }
             ]
         }]);
@@ -80,9 +78,6 @@ import { downloadTransactions } from './commands/downloadTransactions';
         }
         if (res.command === 'write-wallet') {
             await writeRawWallet(config);
-        }
-        if (res.command === 'create-key') {
-            await newKey(config);
         }
         if (res.command === 'download') {
             await downloadTransactions(config);

@@ -1,4 +1,4 @@
-import { fromNano, KeyStore, SendMode, toNano, validateWalletType } from "ton";
+import { Cell, fromNano, KeyStore, SendMode, toNano, validateWalletType } from "ton";
 import { askPassword } from "./utils/askPassword";
 import { openKeystore } from "./utils/openKeystore";
 import { prompt } from 'enquirer';
@@ -23,6 +23,7 @@ import { backupSingleTemplate, backupTemplate } from "./backup/backupTemplate";
 import { askSeqno } from "./utils/askSeqno";
 import { askBounce } from "./utils/askBounce";
 import qr from 'qrcode-terminal';
+import { askBoC } from "./utils/askBoC";
 
 async function listKeys(config: Config, store: KeyStore) {
     var table = new Table({
@@ -611,7 +612,7 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
 
     // Flags
     let amount = res.amount;
-    let paySeparatly: boolean = await askConfirm('Include gas fees separately?', true);
+    let paySeparatly: boolean = true;
     let transferAll: boolean = false;
     let destroyOnZero: boolean = false;
     if (amount <= 0) {
@@ -620,10 +621,30 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
             return;
         }
         destroyOnZero = await askConfirm('Do you want to destroy contract after transfer?', false);
-        if (!(await askConfirm('Make sure that you have at least 0.15 in your account.', true))) {
-            return;
-        }
-        amount = 0.1;
+    }
+
+    // Payload
+    let payload: Cell | string | undefined = undefined;
+    let kind = (await prompt<{ kind: 'None' | 'Comment' | 'BoC' }>([{
+        type: 'select',
+        name: 'kind',
+        message: 'Payload type',
+        initial: 0,
+        choices: [{
+            name: 'None',
+            value: 'none'
+        }, {
+            name: 'Comment',
+            value: 'comment'
+        }, {
+            name: 'BoC',
+            value: 'boc'
+        }]
+    }])).kind;
+    if (kind === 'Comment') {
+        payload = await askText({ message: 'Comment' });
+    } else if (kind === 'BoC') {
+        payload = await askBoC({ message: 'BoC in base64' });
     }
 
     // Mode
@@ -653,7 +674,7 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
 
     // Create wallet
     let contractSource = restoreWalletSource(source.kind, source.address, source.publicKey, source.config);
-    let wallet = await config.client.openWalletFromCustomContract(contractSource);
+    let wallet = config.client.openWalletFromCustomContract(contractSource);
 
     //
     // Prepare
@@ -688,16 +709,17 @@ async function transfer(config: Config, store: { store: KeyStore, name: string }
     //
 
     spinner.start('Signing');
-    let signed = await wallet.transferSign({
+    let signed = wallet.transferSign({
         to: target,
         value: toNano(amount),
         seqno: seqno,
         secretKey: key.secretKey,
         bounce,
         sendMode,
-        timeout: Math.floor(Date.now() / 1000) + (config.offline ? 600 /* 5 min */ : 60 /* 1 min */)
+        timeout: Math.floor(Date.now() / 1000) + (config.offline ? 600 /* 5 min */ : 60 /* 1 min */),
+        payload
     });
-    let boc = await signed.toBoc({ idx: false });
+    let boc = signed.toBoc({ idx: false });
 
     //
     // Sending
