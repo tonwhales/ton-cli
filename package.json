@@ -13,6 +13,7 @@
     "entry.sh"
   ],
   "scripts": {
+    "pkg": "rm -fr dist && rm -fr build && tsc --declaration && pkg .",
     "build": "rm -fr dist && tsc --declaration",
     "test": "jest --verbose --runInBand",
     "release": "yarn build && yarn test && yarn publish",
@@ -28,10 +29,11 @@
     "jest-mock": "27.1.0",
     "ts-jest": "27.0.5",
     "ts-loader": "9.2.5",
-    "typescript": "4.4.2"
+    "typescript": "4.4.2",
+    "pkg": "5.6.0"
   },
   "dependencies": {
-    "@ledgerhq/hw-transport-node-hid": "^6.27.1",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.27.1",
     "@openland/patterns": "^0.0.2",
     "@types/bn.js": "^5.1.0",
     "@types/cli-table": "^0.3.0",
@@ -48,5 +50,22 @@
     "ton-crypto": "2.1.0",
     "ton-ledger": "^1.1.0",
     "yargs": "^17.1.1"
+  },
+  "pkg": {
+    "scripts": [
+      "source/**/*.js"
+    ],
+    "assets": [
+      "node_modules/fp-ts/**/*"
+    ],
+    "targets": [
+      "node16-linux-arm64",
+      "node16-linux-x64",
+      "node16-macos-arm64",
+      "node16-macos-x64",
+      "node16-win-arm64",
+      "node16-win-x64"
+    ],
+    "outputPath": "dist-pkg"
   }
 }

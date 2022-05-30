@@ -1,4 +1,4 @@
-import TransportNodeHid from "@ledgerhq/hw-transport-node-hid";
+import TransportNodeHid from "@ledgerhq/hw-transport-node-hid-noevents";
 import { Config } from "../Config";
 import ora from "ora";
 import { backoff, delay } from "@openland/patterns";
