@@ -104,7 +104,7 @@ async function transfer(transport: TonTransport, config: Config) {
         signed = await transport.signTransaction([44, 607, network, chain, account, 0], {
             to: target,
             amount: amount,
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATLY | SendMode.IGNORE_ERRORS,
             seqno,
             timeout: Math.floor((Date.now() / 1000) + 60),
             bounce: true
