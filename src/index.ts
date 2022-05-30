@@ -11,6 +11,7 @@ import { newMnemonics } from './commands/newMnemonics';
 import { newPassphrase } from './commands/newPassphrase';
 import { writeRawWallet } from './commands/writeRawWallet';
 import { downloadTransactions } from './commands/downloadTransactions';
+import { openLedger } from './commands/openLedger';
 
 (async () => {
     try {
@@ -51,6 +52,7 @@ import { downloadTransactions } from './commands/downloadTransactions';
                 { message: 'Open keystore', name: 'open-keystore' },
                 { message: 'Create keystore', name: 'new-keystore' },
                 { message: 'Restore keystore', name: 'restore-keystore' },
+                { message: 'Open Ledger', name: 'open-ledger' },
                 { message: 'Send file', name: 'send-file', hint: 'Send BOC file to network' },
                 { message: 'Generate secure mnemonics', name: 'new-mnemonics' },
                 { message: 'Generate secure passphrase', name: 'new-passphrase' },
@@ -81,6 +83,9 @@ import { downloadTransactions } from './commands/downloadTransactions';
         }
         if (res.command === 'download') {
             await downloadTransactions(config);
+        }
+        if (res.command === 'open-ledger') {
+            await openLedger(config);
         }
     } catch (e) {
         console.warn(e);
