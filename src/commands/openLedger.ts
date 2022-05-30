@@ -4,27 +4,15 @@ import ora from "ora";
 import { backoff, delay } from "@openland/patterns";
 import { TonTransport } from 'ton-ledger';
 import { prompt } from 'enquirer';
+import { WalletV4Contract, WalletV4Source } from "ton-contracts";
+import { Address, Cell, CellMessage, CommonMessageInfo, ExternalMessage, fromNano, SendMode, StateInit } from "ton";
+import { askAddress } from "./utils/askAddress";
+import { askAmount } from "./utils/askAmount";
 
-async function verifyAddress(transport: TonTransport) {
-    let network = 0;
+async function askForKey(config: Config) {
+    let network = config.testnet ? 2 : 0;
     let chain = 0;
     let account = 0;
-    let res = await prompt<{ command: 'mainnet' | 'testnet' | 'sandbox' }>([{
-        type: 'select',
-        name: 'command',
-        message: 'Network',
-        initial: 0,
-        choices: [
-            { message: 'Mainnet', name: 'mainnet' },
-            { message: 'Testnet', name: 'testnet' },
-            { message: 'Sandbox', name: 'sandbox' }
-        ]
-    }]);
-    if (res.command === 'testnet') {
-        network = 1;
-    } else if (res.command === 'sandbox') {
-        network = 2;
-    }
     let resChain = await prompt<{ command: '-1' | '0' }>([{
         type: 'select',
         name: 'command',
@@ -54,6 +42,16 @@ async function verifyAddress(transport: TonTransport) {
     }]);
     account = parseInt(resAccount.command, 10);
 
+    return {
+        network,
+        chain,
+        account
+    }
+}
+
+async function verifyAddress(transport: TonTransport, config: Config) {
+    let { network, chain, account } = await askForKey(config);
+
     // Loading address
     let loader = ora('Loading address').start();
     let d = await transport.getAddress([44, 607, network, chain, account, 0], { testOnly: network !== 0, chain });
@@ -64,6 +62,69 @@ async function verifyAddress(transport: TonTransport) {
     if (validated.address !== d.address) {
         console.warn('Address missmatch');
     }
+}
+
+async function transfer(transport: TonTransport, config: Config) {
+
+    // Prepare
+    let { network, chain, account } = await askForKey(config);
+    let target = await askAddress({ message: 'Destination' });
+    let amount = await askAmount();
+
+    // Prepare wallet
+    let loader = ora('Loading wallet info...').start();
+    let d = await transport.getAddress([44, 607, network, chain, account, 0], { testOnly: network !== 0, chain });
+    loader.text = 'Loading wallet info...';
+    let source = WalletV4Source.create({ workchain: chain === 0xff ? -1 : 0, publicKey: d.publicKey });
+    let contract = new WalletV4Contract(Address.parse(d.address), source);
+    let seqno = await backoff(() => contract.getSeqNo(config.client));
+    let balance = await backoff(() => config.client.getBalance(contract.address));
+    loader.succeed('Balance is ' + fromNano(balance));
+
+    // Prepare transaction
+    loader.start('Preparing transfer');
+    let bounce = await backoff(() => config.client.isContractDeployed(target));
+    loader.stop();
+    if (!bounce) {
+        let conf = await prompt<{ confirm: string }>([{
+            type: 'confirm',
+            name: 'confirm',
+            message: 'Recepient account is not activated. Do you want to continue?',
+            initial: false
+        }]);
+        if (!conf.confirm) {
+            return;
+        }
+    }
+
+    // Transfer
+    loader.start('Signing');
+    let signed: Cell;
+    try {
+        signed = await transport.signTransaction([44, 607, network, chain, account, 0], {
+            to: target,
+            amount: amount,
+            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            seqno,
+            timeout: Math.floor((Date.now() / 1000) + 60),
+            bounce: true
+        });
+    } catch (e) {
+        loader.fail('Signing failed')
+        return;
+    }
+
+    // Sending
+    loader.text = 'Sending...';
+    let msg = new ExternalMessage({
+        to: contract.address,
+        body: new CommonMessageInfo({
+            stateInit: seqno === 0 ? new StateInit({ code: source.initialCode, data: source.initialData }) : null,
+            body: new CellMessage(signed)
+        })
+    });
+    await backoff(() => config.client.sendMessage(msg));
+    loader.succeed('Sent successfuly');
 }
 
 export async function openLedger(config: Config) {
@@ -107,13 +168,17 @@ export async function openLedger(config: Config) {
             message: 'Pick command',
             initial: 0,
             choices: [
+                { message: 'Transfer', name: 'transfer' },
                 { message: 'Verify address', name: 'verify' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
 
         if (res.command === 'verify') {
-            await verifyAddress(transport);
+            await verifyAddress(transport, config);
+        }
+        if (res.command === 'transfer') {
+            await transfer(transport, config);
         }
         if (res.command === 'exit') {
             return;
