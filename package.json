@@ -45,7 +45,7 @@
     "ora": "5.4.1",
     "prompt": "^1.2.0",
     "qrcode-terminal": "^0.12.0",
-    "ton": "11.12.0",
+    "ton": "11.13.0",
     "ton-contracts": "2.3.2",
     "ton-crypto": "2.1.0",
     "ton-ledger": "^2.2.0",

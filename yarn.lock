@@ -3362,10 +3362,10 @@ ton-ledger@^2.2.0:
     bn.js "^5.2.1"
     ton-crypto "^3.2.0"
 
-ton@11.12.0:
-  version "11.12.0"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-11.12.0.tgz#4cae6fe62dddb178c19b8379dfc61dd00100edf6"
-  integrity sha512-45YPU794whbYvcCGvLxK/ZyzbyRFCyKybJgZMzlRTpTYfHr3mv0bV5jU7vFbLm0b/5Zbs7d4ZsMegeYcLpZjTg==
+ton@11.13.0:
+  version "11.13.0"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-11.13.0.tgz#42f79a3b6faab8473e5510d194f894ba4d160076"
+  integrity sha512-wwv8n04IikylzMKfIHLuGJp54QiNKCQzUypLRq4UhXVMqZg+zF6sbtz4JzoW497QjQ2kmk0SbPkCTLeMT9vM6g==
   dependencies:
     axios "^0.25.0"
     bn.js "5.2.0"
