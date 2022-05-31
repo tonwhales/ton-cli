@@ -2,12 +2,14 @@ import TransportNodeHid from "@ledgerhq/hw-transport-node-hid-noevents";
 import { Config } from "../Config";
 import ora from "ora";
 import { backoff, delay } from "@openland/patterns";
-import { TonTransport } from 'ton-ledger';
+import { TonTransport, TonPayloadFormat } from 'ton-ledger';
 import { prompt } from 'enquirer';
 import { WalletV4Contract, WalletV4Source } from "ton-contracts";
 import { Address, Cell, CellMessage, CommonMessageInfo, ExternalMessage, fromNano, SendMode, StateInit } from "ton";
 import { askAddress } from "./utils/askAddress";
 import { askAmount } from "./utils/askAmount";
+import { askText } from "./utils/askText";
+import { askBoC } from "./utils/askBoC";
 
 async function askForKey(config: Config) {
     let network = config.testnet ? 2 : 0;
@@ -70,6 +72,32 @@ async function transfer(transport: TonTransport, config: Config) {
     let { network, chain, account } = await askForKey(config);
     let target = await askAddress({ message: 'Destination' });
     let amount = await askAmount();
+
+    // Content
+    let payload: TonPayloadFormat | undefined = undefined;
+    let kind = (await prompt<{ kind: 'none' | 'comment' | 'boc' }>([{
+        type: 'select',
+        name: 'kind',
+        message: 'Payload type',
+        initial: 0,
+        choices: [{
+            message: 'None',
+            name: 'none'
+        }, {
+            message: 'Comment',
+            name: 'comment'
+        }, {
+            message: 'BoC (unsafe)',
+            name: 'boc'
+        }]
+    }])).kind;
+    if (kind === 'comment') {
+        let comment = await askText({ message: 'Comment' });
+        payload = { type: 'comment', text: comment };
+    } else if (kind === 'boc') {
+        let boc = await askBoC({ message: 'BoC in base64' });
+        payload = { type: 'unsafe', message: new CellMessage(boc) }
+    }
 
     // Prepare wallet
     let loader = ora('Loading wallet info...').start();

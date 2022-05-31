@@ -3353,10 +3353,10 @@ ton-crypto@^3.2.0:
     ton-crypto-primitives "2.0.0"
     tweetnacl "1.0.3"
 
-ton-ledger@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/ton-ledger/-/ton-ledger-2.0.0.tgz#1802d208a085d760ee4c0dce033b537680a6086f"
-  integrity sha512-gBn6WkZsHWXU4EjFFBp89vJNBNsZlfpDqBSTus9eSGW5M+pBbybgpbKvx91nsbYOLhC7IMxe96mB91wcHI/LIQ==
+ton-ledger@^2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/ton-ledger/-/ton-ledger-2.2.0.tgz#716bb43591c5b0fc41b95b03efa52f5b0767b273"
+  integrity sha512-RK/m2IdnWdMn673AGIZ9vdhov54Q3dAKlMrWy1Ixmexy273u9YXPaYtFfqTnZ6mfa6qYh7SVnXvmXRAJC7MdAA==
   dependencies:
     "@ledgerhq/hw-transport" "^6.27.1"
     bn.js "^5.2.1"

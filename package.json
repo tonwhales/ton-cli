@@ -48,7 +48,7 @@
     "ton": "11.12.0",
     "ton-contracts": "2.3.2",
     "ton-crypto": "2.1.0",
-    "ton-ledger": "^2.0.0",
+    "ton-ledger": "^2.2.0",
     "yargs": "^17.1.1"
   },
   "pkg": {
