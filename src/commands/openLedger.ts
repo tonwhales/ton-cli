@@ -135,7 +135,8 @@ async function transfer(transport: TonTransport, config: Config) {
             sendMode: SendMode.PAY_GAS_SEPARATLY | SendMode.IGNORE_ERRORS,
             seqno,
             timeout: Math.floor((Date.now() / 1000) + 60),
-            bounce: true
+            bounce: true,
+            payload
         });
     } catch (e) {
         loader.fail('Signing failed')
@@ -172,7 +173,7 @@ export async function openLedger(config: Config) {
             // Opening device
             return await TransportNodeHid.open(devices[0]);
         }
-    });
+    }, { onError: (e) => console.warn(e) });
     loader.succeed();
 
     // Opening App
