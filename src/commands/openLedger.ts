@@ -172,8 +172,8 @@ async function showBalance(transport: TonTransport, config: Config) {
 export async function openLedger(config: Config) {
 
     // Loading Ledger
-    let loader = ora('Searching for Ledger').start();
-    let ledger = await backoff(async () => {
+    let loader = ora('Searching for Ledger with TON app').start();
+    let transport = await backoff(async () => {
         while (true) {
 
             // Searching for devices
@@ -182,24 +182,24 @@ export async function openLedger(config: Config) {
                 await delay(1000);
                 continue;
             }
+            let hid = await TransportNodeHid.open(devices[0]);
 
-            // Opening device
-            return await TransportNodeHid.open(devices[0]);
+            let transport = new TonTransport(hid);
+            let appOpened = false;
+
+            try { // We wrap it in a try-catch, because isAppOpen() can throw an error in case of an incorrect application
+                appOpened = await transport.isAppOpen()
+            }catch (e) {
+            }
+
+            if (!appOpened) {
+                await delay(1000);
+                continue;
+            }
+
+            return transport;
         }
     }, { onError: (e) => console.warn(e) });
-    loader.succeed();
-
-    // Opening App
-    const transport = new TonTransport(ledger);
-    loader = ora('Awaiting TON app').start();
-    await backoff(async () => {
-        while (true) {
-            if (await transport.isAppOpen()) {
-                return;
-            }
-            await delay(1000);
-        }
-    });
     loader.succeed();
 
     // Menu
