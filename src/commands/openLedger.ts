@@ -156,6 +156,19 @@ async function transfer(transport: TonTransport, config: Config) {
     loader.succeed('Sent successfuly');
 }
 
+async function showBalance(transport: TonTransport, config: Config) {
+    let { network, chain, account } = await askForKey(config);
+
+    let loader = ora('Loading wallet info...').start();
+    let d = await transport.getAddress([44, 607, network, chain, account, 0], { testOnly: network !== 0, chain });
+
+    let source = WalletV4Source.create({ workchain: chain === 0xff ? -1 : 0, publicKey: d.publicKey });
+    let contract = new WalletV4Contract(Address.parse(d.address), source);
+    let balance = await backoff(() => config.client.getBalance(contract.address));
+
+    loader.succeed('Balance is ' + fromNano(balance));
+}
+
 export async function openLedger(config: Config) {
 
     // Loading Ledger
@@ -199,18 +212,23 @@ export async function openLedger(config: Config) {
             choices: [
                 { message: 'Transfer', name: 'transfer' },
                 { message: 'Verify address', name: 'verify' },
+                { message: 'Show balance', name: 'balance' },
                 { message: 'Exit', name: 'exit' }
             ]
         }]);
 
-        if (res.command === 'verify') {
-            await verifyAddress(transport, config);
-        }
-        if (res.command === 'transfer') {
-            await transfer(transport, config);
-        }
-        if (res.command === 'exit') {
-            return;
+        switch (res.command) {
+            case 'verify':
+                await verifyAddress(transport, config);
+                break;
+            case 'transfer':
+                await transfer(transport, config);
+                break;
+            case 'balance':
+                await showBalance(transport, config);
+                break;
+            case 'exit':
+                return;
         }
     }
 }
